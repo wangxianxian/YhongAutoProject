@@ -5,5 +5,5 @@ class Guest_Session:
         self.__ip = ip
         self.__passwd = passwd
 
-    def guest_cmd(self, cmd):
-        return utils.exc_cmd_guest(self.__ip, self.__passwd, cmd)
+    def guest_cmd(self, cmd, timeout=300):
+        return utils.exc_cmd_guest(self.__ip, self.__passwd, cmd, timeout=timeout)

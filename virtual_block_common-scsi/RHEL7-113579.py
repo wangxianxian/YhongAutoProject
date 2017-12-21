@@ -1,4 +1,9 @@
-import os, sys, logging, subprocess
+"""
+RHEL-113579 - [virtual block] open a same raw image with share-rw under image locking
+https://polarion.engineering.redhat.com/polarion/redirect/project/RedHatEnterpriseLinux7/workitem?id=RHEL-113579
+"""
+
+import os, sys, loginfo, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 print (__file__)
 print (os.path.dirname(__file__))
@@ -9,6 +14,8 @@ sys.path.extend([BASE_DIR])
 from utils import check_qemu_ver,create_images
 import time
 from monitor import Monitor
+import re
+from  utils import remote_ssh_cmd
 
 if __name__ == '__main__':
     cmd_ppc = ''
@@ -40,79 +47,49 @@ if __name__ == '__main__':
     output = check_qemu_ver()
     print output
 
-
-    print '***Create a sys image:***'
-    cmd_create_images = 'qemu-img create -f qcow2 /root/test_home/yhong/image/disk-sys-20G.qcow2 20G'
-    print cmd_create_images
-    sub = subprocess.Popen(cmd_create_images, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    ouput_stdout, ouput_stderr = sub.communicate()
-    print ouput_stdout
-    #print ouput_stderr
-
-
     print '***Boot a guest with data disk***'
     print cmd_ppc
     sub_guest = subprocess.Popen(cmd_ppc, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    #time.sleep(5)
-    #sub_guest.kill()
     print '***Waiting for boot up***'
     time.sleep(5)
-
-    print '***Connecting qmp monitor***'
-    filename = '/var/tmp/qmp-cmd-monitor-yhong'
-    qmp_monitor = Monitor(filename)
-    output = qmp_monitor.rec_data()
-    print  output
-    cmd_qmp = '{"execute":"qmp_capabilities"}'
-    print cmd_qmp
-    qmp_monitor.send_cmd(cmd_qmp)
-    output = qmp_monitor.rec_data()
-    print  output
-    cmd_qmp = '{"execute":"query-status"}'
-    print cmd_qmp
-    qmp_monitor.send_cmd(cmd_qmp)
-    output = qmp_monitor.rec_data()
-    print  output
-
-    time.sleep(60)
 
     print '***Connecting to console***'
     filename = '/var/tmp/serial-yhong'
     qmp_monitor = Monitor(filename)
-    output = qmp_monitor.rec_data()
-    print  output
+    while True:
+        output = qmp_monitor.rec_data()
+        print output
+        if re.search(r"login:", output):
+            break
 
     cmd_root = 'root'
     print cmd_root
     qmp_monitor.send_cmd(cmd_root)
     output = qmp_monitor.rec_data()
     print  output
-    time.sleep(3)
 
     cmd_passwd = 'kvmautotest'
     print cmd_passwd
     qmp_monitor.send_cmd(cmd_passwd)
     output = qmp_monitor.rec_data()
     print  output
-    time.sleep(3)
 
-    cmd = 'dmesg'
+    cmd = 'ifconfig'
     print cmd
     qmp_monitor.send_cmd(cmd)
     output = qmp_monitor.rec_data()
     print  output
-    time.sleep(3)
-
-    cmd = 'dd if=/dev/zero of=/home/dd-file bs=1M count=1000 oflag=direct status=progress'
-    print cmd
-    qmp_monitor.send_cmd(cmd)
-    output = qmp_monitor.rec_data()
-    print  output
-    time.sleep(3)
 
     print '***Disconnect to Monitor.***'
     qmp_monitor.close()
+
+    output = remote_ssh_cmd('10.16.71.71', 'kvmautotest', 'dd if=/dev/zero of=/home/dd-file bs=512b count=10000 oflag=direct &')
+    print output
+
+    output = remote_ssh_cmd('10.16.71.71', 'kvmautotest', 'dmesg')
+    print output
+
     print '***Kill guest.***'
     sub_guest.kill()
 
