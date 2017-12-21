@@ -1,14 +1,8 @@
-import os, sys, loginfo, subprocess
+import os, sys, subprocess
 from utils import check_qemu_ver,create_images
 import time,re
 from monitor import Monitor
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-print (__file__)
-print (os.path.dirname(__file__))
-print (os.path.dirname(os.path.dirname(__file__)))
-print  BASE_DIR
-print('Python %s on %s' % (sys.version, sys.platform))
 sys.path.extend([BASE_DIR])
 
 if __name__ == '__main__':

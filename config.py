@@ -1,4 +1,4 @@
-GUEST_NAME = 'yhong-guest'
+GUEST_NAME = 'yhong-guest '
 CMD_PPC_COMMON = '/usr/libexec/qemu-kvm ' \
                 '-machine pseries ' \
                 '-m 8G ' \

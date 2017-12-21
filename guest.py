@@ -7,3 +7,4 @@ class Guest_Session:
 
     def guest_cmd(self, cmd, timeout=300):
         return utils.exc_cmd_guest(self.__ip, self.__passwd, cmd, timeout=timeout)
+

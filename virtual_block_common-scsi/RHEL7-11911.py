@@ -54,8 +54,9 @@ import time
 from monitor import Monitor
 import re
 import string
-from config import CMD_PPC_COMMON, GUEST_PASSWD
+from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
 from guest import Guest_Session
+from host import check_guest_thread, kill_guest_thread
 
 if __name__ == '__main__':
     GUEST_IP = ''
@@ -74,6 +75,13 @@ if __name__ == '__main__':
     sub_step_log('Checking the version of qemu:')
     check_qemu_ver()
 
+    sub_step_log('Checking guest thread')
+    pid = check_guest_thread(cmd_ppc_test)
+    if pid:
+        kill_guest_thread(pid)
+
+    time.sleep(3)
+
     main_step_log('Step 1. Create a data disk image')
     create_images('/root/test_home/yhong/image/data-disk-20G.qcow2', '20G', 'qcow2')
 
@@ -83,7 +91,7 @@ if __name__ == '__main__':
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     sub_step_log('Check if guest boot up')
-    cmd = 'ps -axu | grep guest-yhong'
+    cmd = 'ps -axu | grep %s' %GUEST_NAME
     subprocess_cmd(cmd)
 
     sub_step_log('Connecting to console')
