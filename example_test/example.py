@@ -1,10 +1,5 @@
 import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-print (__file__)
-print (os.path.dirname(__file__))
-print (os.path.dirname(os.path.dirname(__file__)))
-print  BASE_DIR
-print('Python %s on %s' % (sys.version, sys.platform))
 sys.path.extend([BASE_DIR])
 from utils import check_qemu_ver, create_images, exc_cmd_guest, subprocess_cmd, remote_scp
 from loginfo import sub_step_log, main_step_log
@@ -13,8 +8,8 @@ from monitor import Monitor
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD
-
 from guest import Guest_Session
+
 
 
 GUEST_IP = '10.16.71.71'

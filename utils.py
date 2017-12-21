@@ -33,10 +33,10 @@ def subprocess_cmd(cmd):
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout, stderr = sub.communicate()
     if stderr:
-        print 'stderr : \n', stderr
+        #print 'stderr : \n', stderr
         return stderr
     elif stdout:
-        print 'stdout : \n', stdout
+        #print 'stdout : \n', stdout
         return stdout
 
 def check_qemu_ver():

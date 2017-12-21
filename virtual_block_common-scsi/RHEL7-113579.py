@@ -2,14 +2,8 @@
 RHEL-113579 - [virtual block] open a same raw image with share-rw under image locking
 https://polarion.engineering.redhat.com/polarion/redirect/project/RedHatEnterpriseLinux7/workitem?id=RHEL-113579
 """
-
-import os, sys, loginfo, subprocess
+import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-print (__file__)
-print (os.path.dirname(__file__))
-print (os.path.dirname(os.path.dirname(__file__)))
-print  BASE_DIR
-print('Python %s on %s' % (sys.version, sys.platform))
 sys.path.extend([BASE_DIR])
 from utils import check_qemu_ver,create_images
 import time

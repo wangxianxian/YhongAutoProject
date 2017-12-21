@@ -46,6 +46,8 @@ https://polarion.engineering.redhat.com/polarion/redirect/project/RedHatEnterpri
 
 """
 import os, sys, subprocess
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.extend([BASE_DIR])
 from utils import check_qemu_ver, create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remove_monitor_cmd_echo
 from loginfo import sub_step_log, main_step_log
 import time
@@ -173,6 +175,8 @@ if __name__ == '__main__':
     sub_step_log('Quit guest')
     cmd_quit = "{'execute': 'quit'}"
     qmp_monitor.send_cmd(cmd_quit)
+    output = qmp_monitor.rec_data()
+    print  output
 
     sub_step_log('Check if guest quit')
     cmd = 'ps -axu | grep guest-yhong'
@@ -234,6 +238,12 @@ if __name__ == '__main__':
 
     sub_step_log('Disconnect console')
     console.close()
+
+    sub_step_log('Quit guest')
+    cmd_quit = "{'execute': 'quit'}"
+    qmp_monitor.send_cmd(cmd_quit)
+    output = qmp_monitor.rec_data()
+    print  output
 
     sub_step_log('Kill guest')
     sub_guest.kill()

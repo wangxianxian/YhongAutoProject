@@ -1,4 +1,5 @@
-CMD_PPC_COMMON = '/usr/libexec/qemu-kvm -name guest-yhong ' \
+GUEST_NAME = 'yhong-guest'
+CMD_PPC_COMMON = '/usr/libexec/qemu-kvm ' \
                 '-machine pseries ' \
                 '-m 8G ' \
                 '-nodefaults ' \
@@ -16,6 +17,11 @@ CMD_PPC_COMMON = '/usr/libexec/qemu-kvm -name guest-yhong ' \
                 '-netdev tap,id=hostnet0,script=/etc/qemu-ifup -device virtio-net-pci,netdev=hostnet0,' \
                 'id=virtio-net-pci0,mac=40:f2:e9:5d:9c:03 ' \
                 '-qmp tcp:0:3000,server,nowait ' \
-                '-monitor stdio -vnc :30 '
+                '-monitor stdio -vnc :30 ' \
+                '-name '
+CMD_PPC_COMMON += GUEST_NAME
 
 GUEST_PASSWD = 'kvmautotest'
+
+if __name__ == '__main__':
+    print CMD_PPC_COMMON
