@@ -27,23 +27,16 @@ def remove_monitor_cmd_echo(output, cmd):
         output = "".join(output.splitlines(True)[1:-2])
     return output
 
-def subprocess_cmd(cmd, output=True):
+def subprocess_cmd(cmd, enable_output=True):
     print cmd
     sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    stdout, stderr = sub.communicate()
-    if stderr:
-        if (output == True):
-            print stderr
-        return stderr
-    elif stdout:
-        if (output == True):
-            print stdout
-        return stdout
-
-def check_qemu_ver():
-    cmd = 'rpm -qa | grep qemu'
-    subprocess_cmd(cmd)
+    if (enable_output == True):
+        output = sub.communicate()[0]
+        print output
+        return output, sub
+    elif (enable_output == False):
+        return sub
 
 def create_images(image_file=None, size=None, format=None):
     cmd = 'qemu-img create -f %s %s %s' %(format, image_file, size)

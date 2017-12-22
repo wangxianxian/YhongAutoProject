@@ -48,15 +48,15 @@ https://polarion.engineering.redhat.com/polarion/redirect/project/RedHatEnterpri
 import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
-from utils import check_qemu_ver, create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remove_monitor_cmd_echo
+from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remove_monitor_cmd_echo
 from loginfo import sub_step_log, main_step_log
 import time
-from monitor import Monitor
+from monitor import Monitor, QMPMonitor
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
 from guest_utils import Guest_Session
-from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver
+from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, check_qemu_version
 
 if __name__ == '__main__':
     GUEST_IP = ''
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     check_host_kernel_ver()
 
     sub_step_log('Checking the version of qemu:')
-    check_qemu_ver()
+    check_qemu_version()
 
     sub_step_log('Checking yhong guest thread')
     pid = check_guest_thread()
@@ -89,13 +89,12 @@ if __name__ == '__main__':
     create_images('/root/test_home/yhong/image/data-disk-20G.qcow2', '20G', 'qcow2')
 
     main_step_log('Step 2. Boot a guest with data disk')
-    print cmd_ppc_test
-    sub_guest = subprocess.Popen(cmd_ppc_test, shell=True, stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    #print cmd_ppc_test
+    #sub_guest = subprocess.Popen(cmd_ppc_test, shell=True, stdin=subprocess.PIPE,
+    #                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    sub_guest = subprocess_cmd(cmd_ppc_test, enable_output=False)
 
     sub_step_log('Check if guest boot up')
-    #cmd = 'ps -axu | grep %s' %GUEST_NAME
-    #subprocess_cmd(cmd)
     check_guest_thread()
 
     sub_step_log('Connecting to console')
@@ -109,12 +108,12 @@ if __name__ == '__main__':
 
     sub_step_log('Connecting to qmp')
     filename = '/var/tmp/qmp-cmd-monitor-yhong'
-    qmp_monitor = Monitor(filename)
-    cmd_capabilities = "{'execute': 'qmp_capabilities'}"
-    qmp_monitor.send_cmd(cmd_capabilities)
-    output = qmp_monitor.rec_data()
-    print  output
-            
+    qmp_monitor = QMPMonitor(filename)
+    qmp_monitor.qmp_initial()
+
+    cmd = '"query-status"'
+    qmp_monitor.qmp_cmd(cmd)
+
     cmd_root = 'root'
     console.send_cmd(cmd_root)
     output = console.rec_data()
@@ -185,23 +184,25 @@ if __name__ == '__main__':
     console.close()
 
     sub_step_log('Quit guest')
-    cmd_quit = "{'execute': 'quit'}"
-    qmp_monitor.send_cmd(cmd_quit)
-    output = qmp_monitor.rec_data()
-    print  output
+    cmd = '"quit"'
+    qmp_monitor.qmp_cmd(cmd)
+    time.sleep(3)
 
     sub_step_log('Check if guest quit')
-    cmd = 'ps -axu | grep guest-yhong'
-    subprocess_cmd(cmd)
+    check_guest_thread()
+    #cmd = 'ps -axu | grep guest-yhong | grep -v grep'
+    #subprocess_cmd(cmd)
 
     sub_step_log('Reboot guest again')
     create_images('/root/test_home/yhong/image/data-disk-20G.qcow2', '20G', 'qcow2')
-    sub_guest = subprocess.Popen(cmd_ppc_test, shell=True, stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    #sub_guest = subprocess.Popen(cmd_ppc_test, shell=True, stdin=subprocess.PIPE,
+    #                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    sub_guest = subprocess_cmd(cmd_ppc_test, enable_output=False)
 
     sub_step_log('Check if guest boot')
-    cmd = 'ps -axu | grep guest-yhong'
-    subprocess_cmd(cmd)
+    check_guest_thread()
+    #cmd = 'ps -axu | grep guest-yhong | grep -v grep'
+    #subprocess_cmd(cmd)
 
     sub_step_log('Connecting to console')
     filename = '/var/tmp/serial-yhong'
@@ -252,13 +253,8 @@ if __name__ == '__main__':
     console.close()
 
     sub_step_log('Quit guest')
-    cmd_quit = "{'execute': 'quit'}"
-    qmp_monitor.send_cmd(cmd_quit)
-    output = qmp_monitor.rec_data()
-    print  output
-
-    sub_step_log('Kill guest')
-    sub_guest.kill()
+    cmd = '"quit"'
+    qmp_monitor.qmp_cmd(cmd)
 
     test_time = time.time() - start_time
     print 'Total of test time :', int(test_time/60), 'min'

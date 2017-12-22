@@ -1,7 +1,7 @@
 import subprocess
 
 def check_qemu_ver():
-    ver = subprocess.check_output('rpm -qa | grep qemu', shell=True)
+    ver = subprocess.check_output('rpm -qa | grep qemu | grep -v grep', shell=True)
     return ver
 
 def create_images(image_file=None, size=None, format=None):

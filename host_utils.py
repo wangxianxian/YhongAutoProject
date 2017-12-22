@@ -5,20 +5,19 @@ import os
 
 def check_guest_thread():
     name = '-name ' + GUEST_NAME
-    pid =''
     guest_name = GUEST_NAME
-    cmd_check = 'ps -axu| grep %s' % guest_name
-    output = subprocess_cmd(cmd_check, output=False)
+    cmd_check = 'ps -axu| grep %s | grep -v grep' % guest_name
+    output, _ = subprocess_cmd(cmd_check)
     for line in output.splitlines():
         if re.findall(name, line):
             pid = re.findall(r"\d+", line)[0]
-            print 'Found a yhong guest thread : ', line
+            print 'Found a yhong guest thread : pid =', pid
             return pid
     print 'No found yhong guest thread'
-    return pid
 
 def check_qemu_version():
-    pass
+    cmd_check = '/usr/libexec/qemu-kvm -version'
+    subprocess_cmd(cmd_check)
 
 def kill_guest_thread(pid=None):
     cmd = 'kill -9 %s' % pid

@@ -1,14 +1,15 @@
 import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
-from utils import check_qemu_ver, create_images, exc_cmd_guest, subprocess_cmd, remote_scp
+from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp
 from loginfo import sub_step_log, main_step_log
 import time
-from monitor import Monitor
+from monitor import Monitor, QMPMonitor
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD
 from guest_utils import Guest_Session
+from host_utils import check_guest_thread, kill_guest_thread
 
 
 GUEST_IP = '10.16.71.71'
@@ -26,9 +27,12 @@ if __name__ == '__main__':
                    'if=none,cache=none,media=disk,id=drive-1 ' \
                    '-device scsi-hd,bus=scsi-pci-0.0,id=scsi-hd-1,drive=drive-1,channel=0,scsi-id=0,lun=1 ' \
 
-    # print '--- Checking the version of qemu: ---'
-    sub_step_log('Checking the version of qemu:')
-    check_qemu_ver()
+    sub_step_log('Checking yhong guest thread')
+    pid = check_guest_thread()
+    if pid:
+        kill_guest_thread(pid)
+
+    time.sleep(3)
 
     # print '=== Step 1. Create a data disk image ==='
     main_step_log('Step 1. Create a data disk image')
@@ -42,27 +46,13 @@ if __name__ == '__main__':
 
     # print '--- Check if guest boot up ---'
     sub_step_log('Check if guest boot up')
-    cmd = 'ps -axu | grep guest-yhong'
-    subprocess_cmd(cmd)
+    check_guest_thread()
 
-    # print '--- Connecting to console ---'
-    sub_step_log('Connecting to console')
-    filename = '/var/tmp/serial-yhong'
-    console = Monitor(filename)
-    while True:
-        output = console.rec_data()
-        print output
-        """
-        if not output:
-            print 'Could not connect to console!'
-            sub_guest.kill()
-            break
-        else:
-            print output
-        """
-        if re.search(r"login:", output):
-            break
-
-    guest_session = Guest_Session(GUEST_IP, GUEST_PASSWD)
-    guest_session.guest_cmd('ifconfig')
-    guest_session.guest_cmd('lsblk')
+    sub_step_log('Connecting to qmp')
+    filename = '/var/tmp/qmp-cmd-monitor-yhong'
+    qmp_monitor = QMPMonitor(filename)
+    qmp_monitor.qmp_initial()
+    qmp_monitor.qmp_cmd('"human-monitor-command", "arguments": { "command-line": "info block" }')
+    qmp_monitor.qmp_cmd('"query-version"')
+    qmp_monitor.qmp_cmd('"query-block"')
+    qmp_monitor.qmp_cmd('"query-status"')
