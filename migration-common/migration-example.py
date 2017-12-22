@@ -5,7 +5,7 @@ sys.path.extend([BASE_DIR])
 from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp, remove_monitor_cmd_echo, remote_ssh_cmd
 from loginfo import sub_step_log, main_step_log
 import time
-from monitor import Monitor, QMPMonitor, RemoteQMPMonitor
+from monitor import Monitor, QMPMonitor, RemoteQMPMonitor,RemoteMonitor
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
@@ -85,6 +85,20 @@ if __name__ == '__main__':
     remote_qmp.qmp_cmd('"qmp_capabilities"')
     remote_qmp.qmp_cmd('"query-status"')
     remote_qmp.close()
+    print '*************************************************************************'
+    serail = RemoteMonitor('10.66.10.208', 4444)
+    serail.send_cmd('root')
+    output = serail.rec_data()
+    print output
+
+    serail.send_cmd('kvmautotest')
+    output = serail.rec_data()
+    print output
+
+    serail.send_cmd('dmesg')
+    output = serail.rec_data()
+    print output
+
     print '===================================================================='
     serverHost = '10.66.10.208'
     serverPort = 3333

@@ -4,7 +4,7 @@ sys.path.extend([BASE_DIR])
 from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remove_monitor_cmd_echo,remote_ssh_cmd
 from loginfo import sub_step_log, main_step_log
 import time
-from monitor import Monitor, QMPMonitor
+from monitor import Monitor, QMPMonitor, RemoteQMPMonitor,RemoteSerialMonitor
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
@@ -19,13 +19,9 @@ if __name__ == '__main__':
         '-machine pc ' \
         '-nodefaults ' \
         '-vga std ' \
-        '-chardev socket,id=qmp_id_qmpmonitor1,path=/var/tmp/qmp-cmd-monitor-yhong,server,nowait ' \
-        '-mon chardev=qmp_id_qmpmonitor1,mode=control ' \
         '-device virtio-serial-pci,id=virtio_serial_pci0,bus=pci.0,addr=03 ' \
         '-chardev socket,id=console0,path=/var/tmp/console-yhong,server,nowait ' \
         '-device virtserialport,chardev=console0,name=console0,id=console0,bus=virtio_serial_pci0.0 ' \
-        '-chardev socket,id=serial0,path=/var/tmp/serial-yhong,server,nowait ' \
-        '-device isa-serial,chardev=serial0,id=serial0 ' \
         '-device nec-usb-xhci,id=usb1,bus=pci.0,addr=11 ' \
         '-device virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=04 ' \
         '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-migration/rhel75-64-virtio-scsi.qcow2 ' \
@@ -39,6 +35,7 @@ if __name__ == '__main__':
         '-device usb-kbd,id=usb-kbd1,bus=usb1.0,port=3 ' \
         '-device usb-mouse,id=usb-mouse1,bus=usb1.0,port=4 ' \
         '-qmp tcp:0:3333,server,nowait ' \
+        '-serial tcp:0:4444,server,nowait ' \
         '-vnc :30 ' \
         '-rtc base=localtime,clock=vm,driftfix=slew ' \
         '-boot order=cdn,once=c,menu=off,strict=off ' \
@@ -50,13 +47,9 @@ if __name__ == '__main__':
         '-machine pc ' \
         '-nodefaults ' \
         '-vga std ' \
-        '-chardev socket,id=qmp_id_qmpmonitor1,path=/var/tmp/qmp-cmd-monitor-yhong,server,nowait ' \
-        '-mon chardev=qmp_id_qmpmonitor1,mode=control ' \
         '-device virtio-serial-pci,id=virtio_serial_pci0,bus=pci.0,addr=03 ' \
         '-chardev socket,id=console0,path=/var/tmp/console-yhong,server,nowait ' \
         '-device virtserialport,chardev=console0,name=console0,id=console0,bus=virtio_serial_pci0.0 ' \
-        '-chardev socket,id=serial0,path=/var/tmp/serial-yhong,server,nowait ' \
-        '-device isa-serial,chardev=serial0,id=serial0 ' \
         '-device nec-usb-xhci,id=usb1,bus=pci.0,addr=11 ' \
         '-device virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=04 ' \
         '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-migration/rhel75-64-virtio-scsi.qcow2 ' \
@@ -70,11 +63,12 @@ if __name__ == '__main__':
         '-device usb-kbd,id=usb-kbd1,bus=usb1.0,port=3 ' \
         '-device usb-mouse,id=usb-mouse1,bus=usb1.0,port=4 ' \
         '-qmp tcp:0:3333,server,nowait ' \
+        '-serial tcp:0:4444,server,nowait ' \
         '-vnc :30 ' \
         '-rtc base=localtime,clock=vm,driftfix=slew ' \
         '-boot order=cdn,once=c,menu=off,strict=off ' \
-        '-monitor stdio' \
-        'incoming tcp:0:4000'
+        '-monitor stdio ' \
+        '-incoming tcp:0:4000 '
 
     sub_step_log('Checking host kernel version:')
     check_host_kernel_ver()
@@ -95,30 +89,24 @@ if __name__ == '__main__':
     sub_step_log('Check if guest boot up')
     check_guest_thread()
 
-    time.sleep(3)
-
+    time.sleep(5)
     sub_step_log('Connecting to console')
-    filename = '/var/tmp/serial-yhong'
-    console = Monitor(filename)
+    src_serial = RemoteSerialMonitor('10.66.10.122', 4444)
+
+    """
     while True:
-        output = console.rec_data()
+        output = src_serial.serial_output()
         print output
         if re.search(r"login:", output):
             break
+    """
 
-    cmd_root = 'root'
-    console.send_cmd(cmd_root)
-    output = console.rec_data()
-    print  output
+    time.sleep(10)
 
-    cmd_passwd = GUEST_PASSWD
-    console.send_cmd(cmd_passwd)
-    output = console.rec_data()
-    print  output
+    src_serial.serial_login()
 
     cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
-    console.send_cmd(cmd)
-    output = console.rec_data()
+    output = src_serial.serial_cmd(cmd)
     output = remove_monitor_cmd_echo(output, cmd)
     for ip in output.splitlines():
         if ip == '127.0.0.1':
@@ -126,7 +114,7 @@ if __name__ == '__main__':
         else:
              GUEST_IP = ip
 
-    sub_step_log('Connecting to qmp')
+    sub_step_log('Connecting to src qmp')
     filename = '/var/tmp/qmp-cmd-monitor-yhong'
     qmp_monitor = QMPMonitor(filename)
     qmp_monitor.qmp_initial()
@@ -135,7 +123,35 @@ if __name__ == '__main__':
     qmp_monitor.qmp_cmd(cmd)
 
     main_step_log('Step 2. Boot a guest on det host')
-    remote_ssh_cmd('10.66.10.208', 'root','redhat', cmd_x86_dst)
-    
+    #remote_ssh_cmd('10.66.10.208', 'root','redhat', cmd_x86_dst)
+    cmd = 'ssh root@10.66.10.208 %s' % cmd_x86_dst
+    subprocess_cmd(cmd, enable_output=False)
 
-    pass
+    time.sleep(3)
+
+    sub_step_log('Check the status of dst guest')
+    src_remote_qmp = RemoteQMPMonitor('10.66.10.208', 3333)
+    src_remote_qmp.qmp_initial()
+    src_remote_qmp.qmp_cmd('"qmp_capabilities"')
+    src_remote_qmp.qmp_cmd('"query-status"')
+    #src_remote_qmp.close()
+
+    main_step_log('Step 3. Migrate guest from src host to dst host')
+    cmd = '"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }'
+    qmp_monitor.qmp_cmd(cmd)
+
+    sub_step_log('Check the status of migration')
+    cmd = '"query-migrate"'
+    while True:
+        ouput = qmp_monitor.qmp_cmd(cmd)
+        if re.findall(r'"remaining": 0', ouput):
+            break
+        time.sleep(5)
+
+    main_step_log('Step 4. Login dst guest and dmesg')
+    dst_serial = RemoteSerialMonitor('10.66.10.208', 4444)
+    dst_serial.serial_login()
+    dst_serial.serial_cmd('dmesg')
+
+    src_remote_qmp.close()
+    qmp_monitor.close()

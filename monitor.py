@@ -70,6 +70,7 @@ class QMPMonitor(Monitor):
         Monitor.send_cmd(self, cmd)
         output = Monitor.rec_data(self)
         print output
+        return output
 
 class RemoteMonitor():
     CONNECT_TIMEOUT = 60
@@ -134,6 +135,27 @@ class RemoteQMPMonitor(RemoteMonitor):
         RemoteMonitor.send_cmd(self, cmd)
         output = RemoteMonitor.rec_data(self)
         print output
+
+class RemoteSerialMonitor(RemoteMonitor):
+    def __init__(self, ip, port):
+        RemoteMonitor.__init__(self, ip, port)
+
+    def serial_login(self):
+        cmd = 'root'
+        RemoteMonitor.send_cmd(self, cmd)
+        cmd = 'kvmautotest'
+        RemoteMonitor.send_cmd(self, cmd)
+
+
+    def serial_cmd(self, cmd):
+        print cmd
+        RemoteMonitor.send_cmd(self, cmd)
+        output = RemoteMonitor.rec_data(self)
+        print output
+
+    def serial_output(self):
+        output = RemoteMonitor.rec_data(self)
+        return output
 
 if __name__ == '__main__':
     filename = sys.argv[1]
