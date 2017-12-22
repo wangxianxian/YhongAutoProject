@@ -8,7 +8,7 @@ from monitor import Monitor
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD
-from guest import Guest_Session
+from guest_utils import Guest_Session
 
 
 

@@ -27,16 +27,18 @@ def remove_monitor_cmd_echo(output, cmd):
         output = "".join(output.splitlines(True)[1:-2])
     return output
 
-def subprocess_cmd(cmd):
+def subprocess_cmd(cmd, output=True):
     print cmd
     sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout, stderr = sub.communicate()
     if stderr:
-        #print 'stderr : \n', stderr
+        if (output == True):
+            print stderr
         return stderr
     elif stdout:
-        #print 'stdout : \n', stdout
+        if (output == True):
+            print stdout
         return stdout
 
 def check_qemu_ver():

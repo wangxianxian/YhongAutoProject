@@ -55,28 +55,31 @@ from monitor import Monitor
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
-from guest import Guest_Session
-from host import check_guest_thread, kill_guest_thread
+from guest_utils import Guest_Session
+from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver
 
 if __name__ == '__main__':
     GUEST_IP = ''
     start_time = time.time()
     cmd_ppc = ''
     cmd_ppc_test = CMD_PPC_COMMON + \
-            '-device virtio-scsi-pci,bus=pci.0,addr=0x06,id=scsi-pci-0 ' \
-            '-device virtio-scsi-pci,bus=pci.0,addr=0x07,id=scsi-pci-1 ' \
-            '-drive file=/root/test_home/yhong/image/rhel74-ppc64le-virtio-scsi.qcow2,snapshot=on,format=qcow2,' \
-            'if=none,cache=none,media=disk,id=drive-0 ' \
-            '-device scsi-hd,bus=scsi-pci-0.0,id=scsi-hd-0,drive=drive-0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
-            '-drive file=/root/test_home/yhong/image/data-disk-20G.qcow2,snapshot=off,format=qcow2,' \
-            'if=none,cache=none,media=disk,id=drive-1 ' \
-            '-device scsi-hd,bus=scsi-pci-0.0,id=scsi-hd-1,drive=drive-1,channel=0,scsi-id=0,lun=1 ' \
+        '-device virtio-scsi-pci,bus=pci.0,addr=0x06,id=scsi-pci-0 ' \
+        '-device virtio-scsi-pci,bus=pci.0,addr=0x07,id=scsi-pci-1 ' \
+        '-drive file=/root/test_home/yhong/image/rhel74-ppc64le-virtio-scsi.qcow2,snapshot=on,format=qcow2,' \
+        'if=none,cache=none,media=disk,id=drive-0 ' \
+        '-device scsi-hd,bus=scsi-pci-0.0,id=scsi-hd-0,drive=drive-0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
+        '-drive file=/root/test_home/yhong/image/data-disk-20G.qcow2,snapshot=off,format=qcow2,' \
+        'if=none,cache=none,media=disk,id=drive-1 ' \
+        '-device scsi-hd,bus=scsi-pci-0.0,id=scsi-hd-1,drive=drive-1,channel=0,scsi-id=0,lun=1 ' \
+
+    sub_step_log('Checking host kernel version:')
+    check_host_kernel_ver()
 
     sub_step_log('Checking the version of qemu:')
     check_qemu_ver()
 
-    sub_step_log('Checking guest thread')
-    pid = check_guest_thread(cmd_ppc_test)
+    sub_step_log('Checking yhong guest thread')
+    pid = check_guest_thread()
     if pid:
         kill_guest_thread(pid)
 
@@ -91,8 +94,9 @@ if __name__ == '__main__':
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     sub_step_log('Check if guest boot up')
-    cmd = 'ps -axu | grep %s' %GUEST_NAME
-    subprocess_cmd(cmd)
+    #cmd = 'ps -axu | grep %s' %GUEST_NAME
+    #subprocess_cmd(cmd)
+    check_guest_thread()
 
     sub_step_log('Connecting to console')
     filename = '/var/tmp/serial-yhong'

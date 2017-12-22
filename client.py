@@ -7,3 +7,6 @@ class Guest_Session:
 
     def guest_cmd(self, cmd):
         return utils.exc_cmd_guest(self.__ip, self.__passwd, cmd)
+
+    def __del__(self):
+        pass

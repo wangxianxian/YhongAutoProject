@@ -14,7 +14,7 @@ import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD
 
-from guest import Guest_Session
+from guest_utils import Guest_Session
 
 
 GUEST_IP = '10.16.71.71'
