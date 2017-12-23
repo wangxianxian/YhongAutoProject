@@ -55,7 +55,7 @@ if __name__ == '__main__':
         '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-migration/rhel75-64-virtio-scsi.qcow2 ' \
         '-device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
         '-netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown ' \
-        '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
+        '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:ff,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
         '-m 4G ' \
         '-smp 4 ' \
         '-cpu SandyBridge ' \
@@ -90,38 +90,34 @@ if __name__ == '__main__':
     check_guest_thread()
 
     time.sleep(5)
+
+    sub_step_log('Check the status of src guest')
+    src_remote_qmp = RemoteQMPMonitor('10.66.10.122', 3333)
+    src_remote_qmp.qmp_initial()
+    src_remote_qmp.qmp_cmd('"qmp_capabilities"')
+    src_remote_qmp.qmp_cmd('"query-status"')
+
     sub_step_log('Connecting to console')
     src_serial = RemoteSerialMonitor('10.66.10.122', 4444)
 
-    """
     while True:
         output = src_serial.serial_output()
         print output
         if re.search(r"login:", output):
             break
-    """
-
-    time.sleep(10)
 
     src_serial.serial_login()
 
     cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
     output = src_serial.serial_cmd(cmd)
+    """
     output = remove_monitor_cmd_echo(output, cmd)
     for ip in output.splitlines():
         if ip == '127.0.0.1':
             continue
         else:
              GUEST_IP = ip
-
-    sub_step_log('Connecting to src qmp')
-    filename = '/var/tmp/qmp-cmd-monitor-yhong'
-    qmp_monitor = QMPMonitor(filename)
-    qmp_monitor.qmp_initial()
-
-    cmd = '"query-status"'
-    qmp_monitor.qmp_cmd(cmd)
-
+    """
     main_step_log('Step 2. Boot a guest on det host')
     #remote_ssh_cmd('10.66.10.208', 'root','redhat', cmd_x86_dst)
     cmd = 'ssh root@10.66.10.208 %s' % cmd_x86_dst
@@ -130,21 +126,20 @@ if __name__ == '__main__':
     time.sleep(3)
 
     sub_step_log('Check the status of dst guest')
-    src_remote_qmp = RemoteQMPMonitor('10.66.10.208', 3333)
-    src_remote_qmp.qmp_initial()
-    src_remote_qmp.qmp_cmd('"qmp_capabilities"')
-    src_remote_qmp.qmp_cmd('"query-status"')
-    #src_remote_qmp.close()
+    dst_remote_qmp = RemoteQMPMonitor('10.66.10.208', 3333)
+    dst_remote_qmp.qmp_initial()
+    dst_remote_qmp.qmp_cmd('"qmp_capabilities"')
+    dst_remote_qmp.qmp_cmd('"query-status"')
 
     main_step_log('Step 3. Migrate guest from src host to dst host')
     cmd = '"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }'
-    qmp_monitor.qmp_cmd(cmd)
+    src_remote_qmp.qmp_cmd(cmd)
 
     sub_step_log('Check the status of migration')
     cmd = '"query-migrate"'
     while True:
-        ouput = qmp_monitor.qmp_cmd(cmd)
-        if re.findall(r'"remaining": 0', ouput):
+        output = src_remote_qmp.qmp_cmd_result(cmd)
+        if re.findall(r'"remaining": 0', output):
             break
         time.sleep(5)
 
@@ -154,4 +149,9 @@ if __name__ == '__main__':
     dst_serial.serial_cmd('dmesg')
 
     src_remote_qmp.close()
-    qmp_monitor.close()
+    dst_remote_qmp.close()
+    dst_serial.close()
+    src_serial.close()
+
+    test_time = time.time() - start_time
+    print 'Total of test time :', int(test_time/60), 'min'

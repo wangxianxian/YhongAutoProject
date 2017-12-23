@@ -77,9 +77,12 @@ if __name__ == '__main__':
                   '-monitor stdio' \
                   'incoming tcp:0:4000'
 
-    main_step_log('Step 2. Boot a guest on dst host')
+    sub_step_log('Open vnc dispaly')
+    subprocess_cmd('vncviewer 10.66.10.208:30')
+
+    main_step_log('Step 1. Boot a guest on dst host')
     #remote_ssh_cmd('10.66.10.208', 'root', 'redhat', cmd_x86_dst)
-    main_step_log('Step 3. Connecting dst host qmp')
+    main_step_log('Step 2. Connecting dst host qmp')
     remote_qmp = RemoteQMPMonitor('10.66.10.208', 3333)
     remote_qmp.qmp_initial()
     remote_qmp.qmp_cmd('"qmp_capabilities"')
@@ -117,4 +120,5 @@ if __name__ == '__main__':
     print 'Client recevied :', data
 
     socketobj.close()
+
     pass

@@ -136,6 +136,14 @@ class RemoteQMPMonitor(RemoteMonitor):
         output = RemoteMonitor.rec_data(self)
         print output
 
+    def qmp_cmd_result(self, cmd):
+        cmd ='{"execute": %s}' % cmd
+        print cmd
+        RemoteMonitor.send_cmd(self, cmd)
+        output = RemoteMonitor.rec_data(self)
+        print output
+        return output
+
 class RemoteSerialMonitor(RemoteMonitor):
     def __init__(self, ip, port):
         RemoteMonitor.__init__(self, ip, port)
@@ -143,9 +151,12 @@ class RemoteSerialMonitor(RemoteMonitor):
     def serial_login(self):
         cmd = 'root'
         RemoteMonitor.send_cmd(self, cmd)
+        output = RemoteMonitor.rec_data(self)
+        print output
         cmd = 'kvmautotest'
         RemoteMonitor.send_cmd(self, cmd)
-
+        output = RemoteMonitor.rec_data(self)
+        print output
 
     def serial_cmd(self, cmd):
         print cmd

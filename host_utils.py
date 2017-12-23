@@ -1,4 +1,4 @@
-from utils import subprocess_cmd
+from utils import subprocess_cmd,remote_ssh_cmd
 from config import GUEST_NAME
 import re
 import os
@@ -46,6 +46,10 @@ def creat_isos_files():
 def check_host_kernel_ver():
     cmd = 'uname -r'
     subprocess_cmd(cmd)
+
+def open_vnc_display(host_ip, vnc_host_ip, dst_passwd, port):
+    vnc_cmd = 'vncviewer %s:%s AutoSelect=0' % (host_ip, port)
+    remote_ssh_cmd(vnc_host_ip, dst_passwd, vnc_cmd)
 
 if __name__ == '__main__':
     print '', creat_isos_files()

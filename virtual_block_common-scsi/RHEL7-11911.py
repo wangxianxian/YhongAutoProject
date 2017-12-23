@@ -56,10 +56,14 @@ import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
 from guest_utils import Guest_Session
-from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, check_qemu_version
+from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, check_qemu_version, open_vnc_display
 
 if __name__ == '__main__':
     GUEST_IP = ''
+    HOST_IP ='10.16.67.19'
+    VNC_HOST_IP ='10.72.12.32'
+    VNC_HOST_PASSWD = 'hYX451029*()'
+    VNC_PORT = '30'
     start_time = time.time()
     cmd_ppc = ''
     cmd_ppc_test = CMD_PPC_COMMON + \
@@ -96,6 +100,9 @@ if __name__ == '__main__':
 
     sub_step_log('Check if guest boot up')
     check_guest_thread()
+
+    sub_step_log('Connecting to VNC')
+    open_vnc_display(HOST_IP, VNC_HOST_IP, VNC_HOST_PASSWD, VNC_PORT)
 
     sub_step_log('Connecting to console')
     filename = '/var/tmp/serial-yhong'
