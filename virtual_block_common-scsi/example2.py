@@ -1,10 +1,10 @@
 import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
-from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remove_monitor_cmd_echo
+from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp
 from loginfo import sub_step_log, main_step_log
 import time
-from monitor import MonitorFile, QMPMonitorFile
+from monitor import MonitorFile, QMPMonitorFile, SerialMonitorFile
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
@@ -56,33 +56,22 @@ if __name__ == '__main__':
 
     sub_step_log('Connecting to serial')
     filename = '/var/tmp/serial-yhong'
-    serial = MonitorFile(filename)
-    while True:
-        output = serial.rec_data()
-        print output
-        if re.search(r"login:", output):
-            break
+    serial = SerialMonitorFile(filename)
+
+    serial.serial_login(prompt_login=True)
+
+    GUEST_IP = serial.serial_get_ip()
+
+    guest_session = Guest_Session(GUEST_IP, GUEST_PASSWD)
+    sub_step_log('Display disk info')
+    cmd = 'lsblk'
+    guest_session.guest_cmd(cmd)
 
     sub_step_log('Connecting to qmp')
     filename = '/var/tmp/qmp-cmd-monitor-yhong'
-    qmp_monitor = MonitorFile(filename)
-    cmd_capabilities = "{'execute': 'qmp_capabilities'}"
-    qmp_monitor.send_cmd(cmd_capabilities)
-    output = qmp_monitor.rec_data()
-    print  output
+    qmp_monitor = QMPMonitorFile(filename)
+    qmp_monitor.qmp_initial()
 
-    cmd_root = 'root'
-    serial.send_cmd(cmd_root)
-    output = serial.rec_data()
-    print  output
+    cmd = '"query-status"'
+    qmp_monitor.qmp_cmd(cmd)
 
-    cmd_passwd = GUEST_PASSWD
-    serial.send_cmd(cmd_passwd)
-    output = serial.rec_data()
-    print  output
-
-    cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
-    serial.send_cmd(cmd)
-    output = serial.rec_data()
-
-    print  output

@@ -16,7 +16,7 @@ def remove_remote_command_echo(output, cmd):
     return output
 
 # Remove the echoed command
-def remove_monitor_cmd_echo(output, cmd):
+def remove_monitor_cmd_echo_endline(output, cmd):
     """
     count = 0
     for line in output.splitlines():
@@ -25,6 +25,16 @@ def remove_monitor_cmd_echo(output, cmd):
     """
     if output and output.splitlines()[0] == cmd:
         output = "".join(output.splitlines(True)[1:-2])
+    return output
+
+def remove_remote_monitor_endline(output):
+    """
+    count = 0
+    for line in output.splitlines():
+        print ('%d %s' % (count, line))
+        count = count + 1
+    """
+    output = "".join(output.splitlines(True)[0:-1])
     return output
 
 def subprocess_cmd(cmd, enable_output=True):

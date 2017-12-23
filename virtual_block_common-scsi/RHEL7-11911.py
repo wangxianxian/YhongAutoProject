@@ -48,10 +48,10 @@ https://polarion.engineering.redhat.com/polarion/redirect/project/RedHatEnterpri
 import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
-from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remove_monitor_cmd_echo
+from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp
 from loginfo import sub_step_log, main_step_log
 import time
-from monitor import Monitor, QMPMonitor
+from monitor import MonitorFile, QMPMonitorFile, SerialMonitorFile
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
@@ -93,9 +93,6 @@ if __name__ == '__main__':
     create_images('/root/test_home/yhong/image/data-disk-20G.qcow2', '20G', 'qcow2')
 
     main_step_log('Step 2. Boot a guest with data disk')
-    #print cmd_ppc_test
-    #sub_guest = subprocess.Popen(cmd_ppc_test, shell=True, stdin=subprocess.PIPE,
-    #                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     sub_guest = subprocess_cmd(cmd_ppc_test, enable_output=False)
 
     sub_step_log('Check if guest boot up')
@@ -104,43 +101,19 @@ if __name__ == '__main__':
     sub_step_log('Connecting to VNC')
     open_vnc_display(HOST_IP, VNC_HOST_IP, VNC_HOST_PASSWD, VNC_PORT)
 
-    sub_step_log('Connecting to console')
+    sub_step_log('Connecting to serial')
     filename = '/var/tmp/serial-yhong'
-    console = Monitor(filename)
-    while True:
-        output = console.rec_data()
-        print output
-        if re.search(r"login:", output):
-            break
+    serial = SerialMonitorFile(filename)
+    serial.serial_login(prompt_login=True)
 
     sub_step_log('Connecting to qmp')
     filename = '/var/tmp/qmp-cmd-monitor-yhong'
-    qmp_monitor = QMPMonitor(filename)
+    qmp_monitor = QMPMonitorFile(filename)
     qmp_monitor.qmp_initial()
-
     cmd = '"query-status"'
     qmp_monitor.qmp_cmd(cmd)
 
-    cmd_root = 'root'
-    console.send_cmd(cmd_root)
-    output = console.rec_data()
-    print  output
-
-    cmd_passwd = GUEST_PASSWD
-    console.send_cmd(cmd_passwd)
-    output = console.rec_data()
-    print  output
-
-    cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
-    console.send_cmd(cmd)
-    output = console.rec_data()
-    output = remove_monitor_cmd_echo(output, cmd)
-    for ip in output.splitlines():
-        if ip == '127.0.0.1':
-            continue
-        else:
-             GUEST_IP = ip
-
+    GUEST_IP = serial.serial_get_ip()
     guest_session = Guest_Session(GUEST_IP, GUEST_PASSWD)
     sub_step_log('Display disk info')
     cmd = 'lsblk'
@@ -187,8 +160,8 @@ if __name__ == '__main__':
     if re.search(r"Opts: (null):", output):
         print 'found out null info'
 
-    sub_step_log('Disconnect to console')
-    console.close()
+    sub_step_log('Disconnect to serial')
+    serial.close()
 
     sub_step_log('Quit guest')
     cmd = '"quit"'
@@ -197,38 +170,18 @@ if __name__ == '__main__':
 
     sub_step_log('Check if guest quit')
     check_guest_thread()
-    #cmd = 'ps -axu | grep guest-yhong | grep -v grep'
-    #subprocess_cmd(cmd)
 
     sub_step_log('Reboot guest again')
     create_images('/root/test_home/yhong/image/data-disk-20G.qcow2', '20G', 'qcow2')
-    #sub_guest = subprocess.Popen(cmd_ppc_test, shell=True, stdin=subprocess.PIPE,
-    #                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     sub_guest = subprocess_cmd(cmd_ppc_test, enable_output=False)
 
     sub_step_log('Check if guest boot')
     check_guest_thread()
-    #cmd = 'ps -axu | grep guest-yhong | grep -v grep'
-    #subprocess_cmd(cmd)
 
-    sub_step_log('Connecting to console')
+    sub_step_log('Connecting to serial')
     filename = '/var/tmp/serial-yhong'
-    console = Monitor(filename)
-    while True:
-        output = console.rec_data()
-        print output
-        if re.search(r"login:", output):
-            break
-
-    cmd_root = 'root'
-    console.send_cmd(cmd_root)
-    output = console.rec_data()
-    print  output
-
-    cmd_passwd = 'kvmautotest'
-    console.send_cmd(cmd_passwd)
-    output = console.rec_data()
-    print  output
+    serial = SerialMonitorFile(filename)
+    serial.serial_login(prompt_login=True)
 
     main_step_log('Step 7. start multi dd progress in the same time')
     remote_scp(GUEST_IP, GUEST_PASSWD, '/root/test_home/yhong/YhongAutoProject/shell_scripts/auto_parted.sh', '/home/')
@@ -256,8 +209,8 @@ if __name__ == '__main__':
     cmd = 'dmesg'
     guest_session.guest_cmd(cmd)
 
-    sub_step_log('Disconnect console')
-    console.close()
+    sub_step_log('Disconnect serial')
+    serial.close()
 
     sub_step_log('Quit guest')
     cmd = '"quit"'
