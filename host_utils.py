@@ -19,7 +19,7 @@ def check_qemu_version():
     cmd_check = '/usr/libexec/qemu-kvm -version'
     subprocess_cmd(cmd_check)
 
-def kill_guest_thread(pid=None):
+def kill_guest_thread(pid=None, timeout=5):
     cmd = 'kill -9 %s' % pid
     subprocess_cmd(cmd)
 

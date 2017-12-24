@@ -104,7 +104,6 @@ if __name__ == '__main__':
     src_serial.serial_login(prompt_login=True)
 
     cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
-    src_serial.serial_cmd(cmd)
     SRC_GUEST_IP = src_serial.serial_get_ip()
 
     print 'src guest ip :' ,SRC_GUEST_IP
@@ -132,7 +131,8 @@ if __name__ == '__main__':
     sub_step_log('Check the status of migration')
     cmd = '"query-migrate"'
     while True:
-        output = src_remote_qmp.qmp_cmd_result(cmd)
+        #output = src_remote_qmp.qmp_cmd_result(cmd)
+        output = src_remote_qmp.qmp_cmd(cmd)
         if re.findall(r'"remaining": 0', output):
             break
         time.sleep(5)
@@ -156,7 +156,8 @@ if __name__ == '__main__':
     dst_serial.serial_cmd('dmesg')
     print dst_serial.serial_output('dmesg')
 
-    src_remote_qmp.close()
+    #src_remote_qmp.close()
+    src_remote_qmp.qmp_cmd('"quit"')
     dst_remote_qmp.close()
     dst_serial.close()
     src_serial.close()

@@ -4,7 +4,7 @@ sys.path.extend([BASE_DIR])
 from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp
 from loginfo import sub_step_log, main_step_log
 import time
-from monitor import Monitor, QMPMonitor
+from monitor import MonitorFile, QMPMonitorFile
 import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD

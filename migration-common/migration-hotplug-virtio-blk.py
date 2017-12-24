@@ -105,8 +105,6 @@ if __name__ == '__main__':
     src_serial = RemoteSerialMonitor('10.66.10.122', 4444)
     src_serial.serial_login(prompt_login=True)
 
-    cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
-    src_serial.serial_cmd(cmd)
     SRC_GUEST_IP = src_serial.serial_get_ip()
 
     print 'src guest ip :' ,SRC_GUEST_IP

@@ -26,7 +26,8 @@ CMD_PPC_COMMON = \
     '-netdev tap,id=hostnet0,script=/etc/qemu-ifup ' \
     '-device virtio-net-pci,netdev=hostnet0,id=virtio-net-pci0,mac=40:f2:e9:5d:9c:03 ' \
     '-qmp tcp:0:3000,server,nowait ' \
-    '-monitor stdio -vnc :30 ' \
+    '-monitor stdio ' \
+    '-vnc :30 ' \
     % (GUEST_NAME, MACHINE_TYPE, MEM_SIZE)
 
 if __name__ == '__main__':
