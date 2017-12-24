@@ -110,6 +110,16 @@ def remote_scp(dst_ip, passwd, src_file, dst_file, timeout=300):
 def check_if_alive_guest():
     pass
 
+def total_test_time(start_time, format=None):
+    test_time = time.time() - start_time
+    if format == 'sec':
+        print 'Total of test time :', test_time, 'sec'
+    elif format == 'min':
+        print 'Total of test time :', int(test_time / 60), 'min'
+    else:
+        print 'Total of test time : %s min %s sec' %(int(test_time / 60), int(test_time - int(test_time / 60) * 60 ))
+    pass
+
 if __name__ =='__main__':
     output = remote_ssh_cmd('10.16.67.19', 'kvmautotest', 'uname -r')
     #print output
