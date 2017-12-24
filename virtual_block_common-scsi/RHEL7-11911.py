@@ -48,7 +48,7 @@ https://polarion.engineering.redhat.com/polarion/redirect/project/RedHatEnterpri
 import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
-from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp
+from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp, total_test_time
 from loginfo import sub_step_log, main_step_log
 import time
 from monitor import MonitorFile, QMPMonitorFile, SerialMonitorFile
@@ -120,12 +120,7 @@ if __name__ == '__main__':
     guest_session.guest_cmd(cmd)
 
     sub_step_log('Found out system device')
-    cmd = 'ls /dev/[svh]d*'
-    output = guest_session.guest_cmd(cmd)
-
-    system_dev = re.findall('/dev/[svh]d\w+\d+', output)[0]
-    system_dev = system_dev.rstrip(string.digits)
-    print 'system device : ',system_dev
+    system_dev, output = guest_session.guest_system_dev()
 
     main_step_log('Step 3. mkfs.ext4 /dev/[vs]db')
     for dev in re.split("\s+", output):
@@ -216,5 +211,4 @@ if __name__ == '__main__':
     cmd = '"quit"'
     qmp_monitor.qmp_cmd(cmd)
 
-    test_time = time.time() - start_time
-    print 'Total of test time :', int(test_time/60), 'min'
+    total_test_time(start_time)
