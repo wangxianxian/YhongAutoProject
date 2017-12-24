@@ -1,3 +1,10 @@
 migration host name :
 10.66.10.122  root redhat
 10.66.10.208  root redhat
+
+    '-serial tcp:0:4444,server,nowait ' \
+    '-device virtio-serial-pci,id=virtio_serial_pci0,bus=pci.0,addr=03 ' \
+    '-device isa-serial,chardev=serial0,id=serial0 ' \
+    '-chardev socket,id=console0,path=/var/tmp/console-yhong,server,nowait ' \
+    '-device virtserialport,chardev=console0,name=console0,id=console0,bus=virtio_serial_pci0.0 ' \
+    '-chardev socket,id=serial0,path=/var/tmp/serial-yhong,server,nowait ' \
