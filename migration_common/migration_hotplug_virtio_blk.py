@@ -26,7 +26,7 @@ if __name__ == '__main__':
         '-device virtserialport,chardev=console0,name=console0,id=console0,bus=virtio_serial_pci0.0 ' \
         '-device nec-usb-xhci,id=usb1,bus=pci.0,addr=11 ' \
         '-device virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=04 ' \
-        '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-migration/rhel75-64-virtio-scsi.qcow2 ' \
+        '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2 ' \
         '-device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
         '-netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown ' \
         '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
@@ -54,7 +54,7 @@ if __name__ == '__main__':
         '-device virtserialport,chardev=console0,name=console0,id=console0,bus=virtio_serial_pci0.0 ' \
         '-device nec-usb-xhci,id=usb1,bus=pci.0,addr=11 ' \
         '-device virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=04 ' \
-        '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-migration/rhel75-64-virtio-scsi.qcow2 ' \
+        '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2 ' \
         '-device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
         '-netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown ' \
         '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
@@ -70,7 +70,9 @@ if __name__ == '__main__':
         '-rtc base=localtime,clock=vm,driftfix=slew ' \
         '-boot order=cdn,once=c,menu=off,strict=off ' \
         '-monitor stdio ' \
-        '-incoming tcp:0:4000 '
+        '-incoming tcp:0:4000 ' \
+        '-drive file=/home/yhong/yhong-auto-project/disk-data0-20G.qcow2,format=qcow2,if=none,cache=none,id=drive_data0 ' \
+        '-device virtio-blk-pci,drive=drive_data0,id=virtio-blk-1,addr=0x09 '
 
     sub_step_log('Checking host kernel version:')
     check_host_kernel_ver()
@@ -103,16 +105,29 @@ if __name__ == '__main__':
     src_serial = RemoteSerialMonitor('10.66.10.122', 4444)
     src_serial.serial_login(prompt_login=True)
 
-    cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
     SRC_GUEST_IP = src_serial.serial_get_ip()
 
     print 'src guest ip :' ,SRC_GUEST_IP
     guest_session = Guest_Session(SRC_GUEST_IP, GUEST_PASSWD)
-    sub_step_log('Display pci info')
-    cmd = 'lspci'
+    sub_step_log('Display disk info on src host')
+    cmd = 'lsblk'
     guest_session.guest_cmd(cmd)
 
-    main_step_log('Step 2. Boot a guest on dst host')
+    main_step_log('Step 2. Hotplug a virtio-blk device')
+    sub_step_log('Create a virtio block disk')
+    create_images('/home/yhong/yhong-auto-project/disk-data0-20G.qcow2', '10G', 'qcow2')
+
+    src_remote_qmp.qmp_cmd('"__com.redhat_drive_add", "arguments":'
+                           '{"file":"/home/yhong/yhong-auto-project/disk-data0-20G.qcow2",'
+                           '"format":"qcow2","id":"drive_data0"}')
+    src_remote_qmp.qmp_cmd('"device_add","arguments":'
+                           '{"driver":"virtio-blk-pci","drive":"drive_data0","id":"virtio-blk-1","addr":"0x09"}')
+    time.sleep(3)
+    sub_step_log('Display disk info on src host after hot plugging')
+    cmd = 'lsblk'
+    guest_session.guest_cmd(cmd)
+
+    main_step_log('Step 3. Boot a guest on dst host')
     cmd = 'ssh root@10.66.10.208 %s' % cmd_x86_dst
     subprocess_cmd(cmd, enable_output=False)
 
@@ -124,21 +139,20 @@ if __name__ == '__main__':
     dst_remote_qmp.qmp_cmd('"qmp_capabilities"')
     dst_remote_qmp.qmp_cmd('"query-status"')
 
-    main_step_log('Step 3. Migrate guest from src host to dst host')
+    main_step_log('Step 4. Migrate guest from src host to dst host')
     cmd = '"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }'
     src_remote_qmp.qmp_cmd(cmd)
 
     sub_step_log('Check the status of migration')
     cmd = '"query-migrate"'
     while True:
-        #output = src_remote_qmp.qmp_cmd_result(cmd)
         output = src_remote_qmp.qmp_cmd(cmd)
         if re.findall(r'"remaining": 0', output):
             break
         time.sleep(5)
 
 
-    main_step_log('Step 4. Login dst guest')
+    main_step_log('Step 5. Login dst guest')
     dst_serial = RemoteSerialMonitor('10.66.10.208', 4444)
     dst_serial.serial_login()
 
@@ -146,18 +160,21 @@ if __name__ == '__main__':
 
     print 'dst guest ip :', DST_GUEST_IP
     guest_session = Guest_Session(DST_GUEST_IP, GUEST_PASSWD)
-    sub_step_log('Display pci info')
-    cmd = 'lspci'
+    sub_step_log('Display disk info on dst host')
+    cmd = 'lsblk'
     guest_session.guest_cmd(cmd)
 
-    main_step_log('Step 5. reboot dst guest and login dmesg')
+    main_step_log('Step 6. reboot dst guest and login dmesg')
     dst_serial.serial_cmd('reboot')
     dst_serial.serial_login(prompt_login=True)
     dst_serial.serial_cmd('dmesg')
     print dst_serial.serial_output('dmesg')
 
-    #src_remote_qmp.close()
-    src_remote_qmp.qmp_cmd('"quit"')
+    sub_step_log('Display disk info on dst host after rebooting')
+    cmd = 'lsblk'
+    guest_session.guest_cmd(cmd)
+
+    src_remote_qmp.close()
     dst_remote_qmp.close()
     dst_serial.close()
     src_serial.close()

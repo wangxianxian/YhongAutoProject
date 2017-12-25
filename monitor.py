@@ -118,15 +118,7 @@ class QMPMonitorFile(MonitorFile):
             output = MonitorFile.rec_data(self)
             print output
             return output
-    """
-    def qmp_cmd_result(self, cmd):
-        cmd ='{"execute": %s}' % cmd
-        print cmd
-        RemoteMonitor.send_cmd(self, cmd)
-        output = RemoteMonitor.rec_data(self)
-        print output
-        return output
-    """
+
 class RemoteMonitor():
     CONNECT_TIMEOUT = 60
     DATA_AVAILABLE_TIMEOUT = 3
@@ -196,15 +188,6 @@ class RemoteQMPMonitor(RemoteMonitor):
             output = RemoteMonitor.rec_data(self)
             print output
             return output
-    """
-    def qmp_cmd_result(self, cmd):
-        cmd ='{"execute": %s}' % cmd
-        print cmd
-        RemoteMonitor.send_cmd(self, cmd)
-        output = RemoteMonitor.rec_data(self)
-        print output
-        return output
-    """
 
 class RemoteSerialMonitor(RemoteMonitor):
     def __init__(self, ip, port):

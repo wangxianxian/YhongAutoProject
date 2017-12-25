@@ -1,6 +1,12 @@
 migration host name :
 10.66.10.122  root redhat
+vim /etc/exports
+/home/yhong/yhong-auto-project *(rw,sync,no_root_squash)
+service nfs restart
 10.66.10.208  root redhat
+mount -t nfs 10.66.10.122:/home/yhong/yhong-auto-project/ /home/yhong/yhong-auto-project/
+
+scp -r /home/yhong/Project/YhongAutoProject/* 10.66.10.122:/home/yhong/yhong-auto-project/
 
     '-serial tcp:0:4444,server,nowait ' \
     '-device virtio-serial-pci,id=virtio_serial_pci0,bus=pci.0,addr=03 ' \

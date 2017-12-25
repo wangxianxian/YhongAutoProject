@@ -23,20 +23,20 @@ if __name__ == '__main__':
         '-vga std ' \
         '-device nec-usb-xhci,id=usb1,bus=pci.0,addr=11 ' \
         '-device virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=04 ' \
-        '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/yhong-auto-migration/rhel75-64-virtio-scsi-2.qcow2 ' \
+        '-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,file=/home/yhong/Images/rhel75-64-virtio-scsi.qcow2 ' \
         '-device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
         '-netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown ' \
         '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
         '-m 4G ' \
         '-smp 4 ' \
-        '-cpu SandyBridge ' \
+        '-cpu host ' \
         '-device usb-tablet,id=usb-tablet1,bus=usb1.0,port=2 ' \
         '-device usb-kbd,id=usb-kbd1,bus=usb1.0,port=3 ' \
         '-device usb-mouse,id=usb-mouse1,bus=usb1.0,port=4 ' \
         '-qmp tcp:0:3333,server,nowait ' \
         '-serial tcp:0:4444,server,nowait ' \
         '-vnc :30 ' \
-        '-rtc base=localtime,clock=vm,driftfix=slew ' \
+        '-rtc base=localtime,clock=vm ' \
         '-boot order=cdn,once=c,menu=off,strict=off ' \
         '-monitor stdio '
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     time.sleep(1)
 
     sub_step_log('Connecting to src serial')
-    src_serial = RemoteSerialMonitor('10.66.10.122', 4444)
+    src_serial = RemoteSerialMonitor('0', 4444)
 
     src_serial.serial_login(prompt_login=True, timeout=10)
     SRC_GUEST_IP = src_serial.serial_get_ip()
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     print src_serial.serial_output('free -h')
 
     sub_step_log('Check the status of src guest')
-    src_remote_qmp = RemoteQMPMonitor('10.66.10.122', 3333)
+    src_remote_qmp = RemoteQMPMonitor('0', 3333)
     src_remote_qmp.qmp_initial()
     src_remote_qmp.qmp_cmd('"qmp_capabilities"')
     src_remote_qmp.qmp_cmd('"query-status"')
@@ -87,14 +87,6 @@ if __name__ == '__main__':
 
     guest_session.guest_cmd('dmesg')
 
-    #sub_step_log('reboot guest')
-    #guest_session.guest_cmd('reboot')
-
-    #src_serial.serial_output()
-
-    #src_serial.serial_login(prompt_login=True, timeout=10)
     src_remote_qmp.qmp_cmd('"quit"')
-    #src_remote_qmp.close()
     src_serial.close()
-
     total_test_time(start_time)
