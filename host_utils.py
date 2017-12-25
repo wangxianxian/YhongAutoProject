@@ -2,6 +2,7 @@ from utils import subprocess_cmd,remote_ssh_cmd
 from config import GUEST_NAME
 import re
 import os
+import time
 
 def check_guest_thread():
     name = '-name ' + GUEST_NAME
@@ -22,6 +23,7 @@ def check_qemu_version():
 def kill_guest_thread(pid=None, timeout=5):
     cmd = 'kill -9 %s' % pid
     subprocess_cmd(cmd)
+    time.sleep(1)
 
 def creat_images_files():
     src_file = os.getcwd()
