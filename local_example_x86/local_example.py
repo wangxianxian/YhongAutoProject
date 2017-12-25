@@ -57,6 +57,8 @@ if __name__ == '__main__':
     sub_step_log('Check if guest boot up')
     check_guest_thread()
 
+    time.sleep(1)
+
     sub_step_log('Connecting to src serial')
     src_serial = RemoteSerialMonitor('0', 4444)
 

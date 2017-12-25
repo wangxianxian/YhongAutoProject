@@ -2,6 +2,9 @@ import os,sys,time,subprocess
 import pexpect
 import subprocess
 import socket
+import select
+import re
+import usr_exceptions
 
 # Remove the echoed command
 def remove_remote_command_echo(output, cmd):
@@ -47,6 +50,28 @@ def subprocess_cmd(cmd, enable_output=True):
         return output, sub
     elif (enable_output == False):
         return sub
+
+def check_qemu_fd_stdout(fd=None, timeout=2):
+    while select.select([fd], [], [], 1)[0]:
+        tmp = os.read(fd, 819200)
+        if re.search(r'qemu-kvm:', tmp):
+            print tmp
+            info = 'Guest boot failed!! \n%s' %tmp
+            raise usr_exceptions.GuestBootFailed(info)
+        else:
+            return True
+
+def subprocess_cmd_v2(cmd, enable_output=True):
+    print cmd
+    sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    fd = sub.stdout.fileno()
+    if (enable_output == True):
+        output = sub.communicate()[0]
+        print output
+        return output, fd
+    elif (enable_output == False):
+        return fd
 
 def create_images(image_file=None, size=None, format=None):
     cmd = 'qemu-img create -f %s %s %s' %(format, image_file, size)
