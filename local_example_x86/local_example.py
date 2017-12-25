@@ -51,8 +51,6 @@ if __name__ == '__main__':
     if pid:
         kill_guest_thread(pid)
 
-    time.sleep(3)
-
     main_step_log('Step 1. Boot a guest on src host')
     sub_guest = subprocess_cmd(cmd_x86_src, enable_output=False)
 

@@ -56,7 +56,8 @@ import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
 from guest_utils import Guest_Session
-from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, check_qemu_version, open_vnc_display
+from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, \
+    check_qemu_version, open_vnc_display,boot_guest_v2
 
 if __name__ == '__main__':
     GUEST_IP = ''
@@ -93,7 +94,8 @@ if __name__ == '__main__':
     create_images('/root/test_home/yhong/image/data-disk-20G.qcow2', '20G', 'qcow2')
 
     main_step_log('Step 2. Boot a guest with data disk')
-    sub_guest = subprocess_cmd(cmd_ppc_test, enable_output=False)
+    #sub_guest = subprocess_cmd(cmd_ppc_test, enable_output=False)
+    boot_guest_v2(cmd_ppc_test)
 
     sub_step_log('Check if guest boot up')
     check_guest_thread()

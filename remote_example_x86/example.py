@@ -1,7 +1,8 @@
 import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
-from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remote_ssh_cmd, total_test_time
+from utils import create_images, exc_cmd_guest, \
+    subprocess_cmd, remote_scp,remote_ssh_cmd, total_test_time, subprocess_cmd_v2, check_qemu_fd_stdout
 from loginfo import sub_step_log, main_step_log
 import time
 from monitor import MonitorFile, QMPMonitorFile, RemoteQMPMonitor,RemoteSerialMonitor, SerialMonitorFile
@@ -9,7 +10,8 @@ import re
 import string
 from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
 from guest_utils import Guest_Session
-from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, check_qemu_version
+from host_utils import check_guest_thread, kill_guest_thread, \
+    check_host_kernel_ver, check_qemu_version,boot_guest,kill_guest_thread_v2,boot_guest_v2
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -47,19 +49,21 @@ if __name__ == '__main__':
     check_qemu_version()
 
     sub_step_log('Checking yhong guest thread')
+    """
     pid = check_guest_thread()
     if pid:
         kill_guest_thread(pid)
-
-    time.sleep(3)
+    """
+    kill_guest_thread_v2()
 
     main_step_log('Step 1. Boot a guest on src host')
-    sub_guest = subprocess_cmd(cmd_x86_src, enable_output=False)
+    #boot_guest(cmd_x86_src)
+    #fd = subprocess_cmd_v2(cmd_x86_src, enable_output=False)
+    #check_qemu_fd_stdout(fd)
+    boot_guest_v2(cmd_x86_src)
 
     sub_step_log('Check if guest boot up')
     check_guest_thread()
-
-    time.sleep(1)
 
     sub_step_log('Connecting to src serial')
     src_serial = RemoteSerialMonitor('10.66.10.122', 4444)
@@ -87,14 +91,8 @@ if __name__ == '__main__':
 
     guest_session.guest_cmd('dmesg')
 
-    #sub_step_log('reboot guest')
-    #guest_session.guest_cmd('reboot')
-
-    #src_serial.serial_output()
-
-    #src_serial.serial_login(prompt_login=True, timeout=10)
     src_remote_qmp.qmp_cmd('"quit"')
-    #src_remote_qmp.close()
+
     src_serial.close()
 
     total_test_time(start_time)

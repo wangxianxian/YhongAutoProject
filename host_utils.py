@@ -1,9 +1,11 @@
-from utils import subprocess_cmd,remote_ssh_cmd
+from utils import subprocess_cmd,remote_ssh_cmd, subprocess_cmd_v2, check_qemu_fd_stdout
 from config import GUEST_NAME
 import re
 import os
+import time
 
 def check_guest_thread():
+    pid = ''
     name = '-name ' + GUEST_NAME
     guest_name = GUEST_NAME
     cmd_check = 'ps -axu| grep %s | grep -v grep' % guest_name
@@ -22,6 +24,13 @@ def check_qemu_version():
 def kill_guest_thread(pid=None, timeout=5):
     cmd = 'kill -9 %s' % pid
     subprocess_cmd(cmd)
+
+def kill_guest_thread_v2(timeout=5):
+    pid = ''
+    while check_guest_thread():
+        pid = check_guest_thread()
+        cmd = 'kill -9 %s' % pid
+        subprocess_cmd(cmd)
 
 def creat_images_files():
     src_file = os.getcwd()
@@ -50,6 +59,14 @@ def check_host_kernel_ver():
 def open_vnc_display(host_ip, vnc_host_ip, dst_passwd, port):
     vnc_cmd = 'vncviewer %s:%s AutoSelect=0' % (host_ip, port)
     remote_ssh_cmd(vnc_host_ip, dst_passwd, vnc_cmd)
+
+def boot_guest(cmd, timeout=60):
+    sub_guest = subprocess_cmd(cmd, enable_output=False)
+    time.sleep(2)
+
+def boot_guest_v2(cmd, timeout=60):
+    fd = subprocess_cmd_v2(cmd, enable_output=False)
+    check_qemu_fd_stdout(fd)
 
 if __name__ == '__main__':
     print '', creat_isos_files()
