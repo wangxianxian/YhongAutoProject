@@ -1,7 +1,8 @@
 import os, sys, subprocess
-from utils import check_qemu_ver,create_images
+from utils import create_images
 import time,re
-from monitor import Monitor
+from monitor import MonitorFile
+from host_utils import check_qemu_version
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
 
@@ -32,8 +33,7 @@ if __name__ == '__main__':
           '-monitor stdio'
 
     print '***Checking the version of qemu:***\n'
-    output = check_qemu_ver()
-    print output
+    check_qemu_version()
 
     print '***Create a sys image:***\n'
     cmd_create_images = 'qemu-img create -f qcow2 /root/test_home/yhong/YhongAutoProject/test-disk-sys-20G.qcow2 20G'

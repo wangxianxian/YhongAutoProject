@@ -1,10 +1,12 @@
-import os
+import os, random
 
 GUEST_PASSWD = 'kvmautotest'
 
 GUEST_NAME = 'yhong-guest'
 MACHINE_TYPE = 'pseries'
 MEM_SIZE = '8G'
+SERIAL_PORT = random.random() * 1000
+QMP_PORT = random.random() * 1000
 
 CMD_PPC_COMMON = \
     '/usr/libexec/qemu-kvm ' \

@@ -2,7 +2,7 @@ import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
 from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remote_ssh_cmd, total_test_time
-from loginfo import sub_step_log, main_step_log
+from log_utils import sub_step_log, main_step_log
 import time
 from monitor import MonitorFile, QMPMonitorFile, RemoteQMPMonitor,RemoteSerialMonitor, SerialMonitorFile
 import re

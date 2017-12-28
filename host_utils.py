@@ -1,4 +1,4 @@
-from utils import subprocess_cmd,remote_ssh_cmd, subprocess_cmd_v2, check_qemu_fd_stdout
+from utils import subprocess_cmd,remote_ssh_cmd, subprocess_cmd_v2, check_qemu_fd_stdout, Test
 from config import GUEST_NAME
 import re
 import os
@@ -67,6 +67,12 @@ def boot_guest(cmd, timeout=60):
 def boot_guest_v2(cmd, timeout=60):
     fd = subprocess_cmd_v2(cmd, enable_output=False)
     check_qemu_fd_stdout(fd)
+
+def install_qemu(qemu_ver=None):
+    pass
+
+def pre_install_tools():
+    pass
 
 if __name__ == '__main__':
     print '', creat_isos_files()
