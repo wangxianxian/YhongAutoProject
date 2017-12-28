@@ -49,7 +49,7 @@ import os, sys, subprocess
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
 from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp, total_test_time
-from loginfo import sub_step_log, main_step_log
+from log_utils import sub_step_log, main_step_log
 import time
 from monitor import MonitorFile, QMPMonitorFile, SerialMonitorFile
 import re
@@ -59,7 +59,7 @@ from guest_utils import Guest_Session
 from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, \
     check_qemu_version, open_vnc_display,boot_guest_v2
 
-if __name__ == '__main__':
+def run_case(timeout=60):
     GUEST_IP = ''
     HOST_IP ='10.16.67.19'
     VNC_HOST_IP ='10.72.12.32'
@@ -214,3 +214,6 @@ if __name__ == '__main__':
     qmp_monitor.qmp_cmd(cmd)
 
     total_test_time(start_time)
+
+if __name__ == '__main__':
+    run_case()

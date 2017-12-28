@@ -3,7 +3,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
 from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remote_ssh_cmd, \
     total_test_time
-from loginfo import sub_step_log, main_step_log
+from log_utils import sub_step_log, main_step_log
 import time
 from monitor import MonitorFile, QMPMonitorFile, RemoteQMPMonitor,RemoteSerialMonitor
 import re
@@ -13,7 +13,7 @@ from guest_utils import Guest_Session
 from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, \
     check_qemu_version,boot_guest_v2
 
-if __name__ == '__main__':
+def run_case(timeout=60):
     start_time = time.time()
     SRC_GUEST_IP = ''
     DST_GUEST_IP = ''
@@ -101,7 +101,6 @@ if __name__ == '__main__':
     sub_step_log('Check the status of src guest')
     src_remote_qmp = RemoteQMPMonitor('10.66.10.122', 3333)
     src_remote_qmp.qmp_initial()
-    src_remote_qmp.qmp_cmd('"qmp_capabilities"')
     src_remote_qmp.qmp_cmd('"query-status"')
 
     sub_step_log('Connecting to src serial')
@@ -177,9 +176,14 @@ if __name__ == '__main__':
     cmd = 'lsblk'
     guest_session.guest_cmd(cmd)
 
+    src_remote_qmp.qmp_cmd('"quit"')
+    dst_remote_qmp.qmp_cmd('"quit"')
     src_remote_qmp.close()
     dst_remote_qmp.close()
     dst_serial.close()
     src_serial.close()
 
     total_test_time(start_time)
+
+if __name__ == '__main__':
+    run_case()

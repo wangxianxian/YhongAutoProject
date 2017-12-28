@@ -51,8 +51,8 @@ def subprocess_cmd(cmd, enable_output=True):
     elif (enable_output == False):
         return sub
 
-def check_qemu_fd_stdout(fd=None, timeout=2):
-    while select.select([fd], [], [], 1)[0]:
+def check_qemu_fd_stdout(fd=None, timeout=3):
+    while select.select([fd], [], [], timeout)[0]:
         tmp = os.read(fd, 819200)
         if re.search(r'qemu-kvm:', tmp):
             print tmp
