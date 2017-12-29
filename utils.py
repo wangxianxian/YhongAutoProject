@@ -1,7 +1,6 @@
-import os,sys,time,subprocess
+import os,time
 import pexpect
 import subprocess
-import socket
 import select
 import re
 import usr_exceptions

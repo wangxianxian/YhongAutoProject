@@ -1,15 +1,14 @@
-import os, sys, subprocess
+import os, sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
-from utils import create_images, exc_cmd_guest, subprocess_cmd, remote_scp,remote_ssh_cmd, total_test_time
-from log_utils import sub_step_log, main_step_log
 import time
-from monitor import MonitorFile, QMPMonitorFile, RemoteQMPMonitor,RemoteSerialMonitor
+from host_utils import HostSession
+from guest_utils import GuestSession_v2
+from monitor import RemoteSerialMonitor_v2, RemoteQMPMonitor_v2
+from log_utils import StepLog
+from config import GUEST_PASSWD
+from utils import subprocess_cmd_v2
 import re
-import string
-from config import CMD_PPC_COMMON, GUEST_PASSWD, GUEST_NAME
-from guest_utils import Guest_Session
-from host_utils import check_guest_thread, kill_guest_thread, check_host_kernel_ver, check_qemu_version,boot_guest_v2
 
 def run_case(timeout=60):
     start_time = time.time()
@@ -71,64 +70,67 @@ def run_case(timeout=60):
         '-boot order=cdn,once=c,menu=off,strict=off ' \
         '-monitor stdio ' \
         '-incoming tcp:0:4000 '
+    case_id = 'RHEL7-0000:'
+    case_id += time.strftime("%Y-%m-%d-%H:%M:%S")
+    step_log = StepLog(case_id)
+    host_session = HostSession(case_id)
+    step_log.sub_step_log('Checking host kernel version:')
+    host_session.check_host_kernel_ver()
 
-    sub_step_log('Checking host kernel version:')
-    check_host_kernel_ver()
+    step_log.sub_step_log('Checking the version of qemu:')
+    host_session.check_qemu_version()
 
-    sub_step_log('Checking the version of qemu:')
-    check_qemu_version()
-
-    sub_step_log('Checking yhong guest thread')
-    pid = check_guest_thread()
+    step_log.sub_step_log('Checking yhong guest thread')
+    pid = host_session.check_guest_thread()
     if pid:
-        kill_guest_thread(pid)
+        host_session.kill_guest_thread(pid)
 
     time.sleep(3)
 
-    main_step_log('Step 1. Boot a guest on src host')
+    step_log.main_step_log('Step 1. Boot a guest on src host')
     #sub_guest = subprocess_cmd(cmd_x86_src, enable_output=False)
-    boot_guest_v2(cmd_x86_src)
+    host_session.boot_guest_v2(cmd_x86_src)
 
-    sub_step_log('Check if guest boot up')
-    check_guest_thread()
+    step_log.sub_step_log('Check if guest boot up')
+    host_session.check_guest_thread()
 
     time.sleep(5)
 
-    sub_step_log('Check the status of src guest')
-    src_remote_qmp = RemoteQMPMonitor('10.66.10.122', 3333)
+    step_log.sub_step_log('Check the status of src guest')
+    src_remote_qmp = RemoteQMPMonitor_v2(case_id,'10.66.10.122', 3333)
     src_remote_qmp.qmp_initial()
     src_remote_qmp.qmp_cmd('"query-status"')
 
-    sub_step_log('Connecting to src serial')
-    src_serial = RemoteSerialMonitor('10.66.10.122', 4444)
+    step_log.sub_step_log('Connecting to src serial')
+    src_serial = RemoteSerialMonitor_v2(case_id, '10.66.10.122', 4444)
     src_serial.serial_login(prompt_login=True)
 
     cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
     SRC_GUEST_IP = src_serial.serial_get_ip()
 
     print 'src guest ip :' ,SRC_GUEST_IP
-    guest_session = Guest_Session(SRC_GUEST_IP, GUEST_PASSWD)
-    sub_step_log('Display pci info')
+    guest_session = GuestSession_v2(case_id, SRC_GUEST_IP, GUEST_PASSWD)
+    step_log.sub_step_log('Display pci info')
     cmd = 'lspci'
     guest_session.guest_cmd(cmd)
 
-    main_step_log('Step 2. Boot a guest on dst host')
+    step_log.main_step_log('Step 2. Boot a guest on dst host')
     cmd = 'ssh root@10.66.10.208 %s' % cmd_x86_dst
-    subprocess_cmd(cmd, enable_output=False)
+    subprocess_cmd_v2(cmd, enable_output=False)
 
     time.sleep(3)
 
-    sub_step_log('Check the status of dst guest')
-    dst_remote_qmp = RemoteQMPMonitor('10.66.10.208', 3333)
+    step_log.sub_step_log('Check the status of dst guest')
+    dst_remote_qmp = RemoteQMPMonitor_v2(case_id, '10.66.10.208', 3333)
     dst_remote_qmp.qmp_initial()
     dst_remote_qmp.qmp_cmd('"qmp_capabilities"')
     dst_remote_qmp.qmp_cmd('"query-status"')
 
-    main_step_log('Step 3. Migrate guest from src host to dst host')
+    step_log.main_step_log('Step 3. Migrate guest from src host to dst host')
     cmd = '"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }'
     src_remote_qmp.qmp_cmd(cmd)
 
-    sub_step_log('Check the status of migration')
+    step_log.sub_step_log('Check the status of migration')
     cmd = '"query-migrate"'
     while True:
         #output = src_remote_qmp.qmp_cmd_result(cmd)
@@ -137,33 +139,31 @@ def run_case(timeout=60):
             break
         time.sleep(5)
 
-
-    main_step_log('Step 4. Login dst guest')
-    dst_serial = RemoteSerialMonitor('10.66.10.208', 4444)
+    step_log.main_step_log('Step 4. Login dst guest')
+    dst_serial = RemoteSerialMonitor_v2(case_id, '10.66.10.208', 4444)
     dst_serial.serial_login()
 
     DST_GUEST_IP = dst_serial.serial_get_ip()
 
     print 'dst guest ip :', DST_GUEST_IP
-    guest_session = Guest_Session(DST_GUEST_IP, GUEST_PASSWD)
-    sub_step_log('Display pci info')
+    guest_session = GuestSession_v2(case_id, DST_GUEST_IP, GUEST_PASSWD)
+    step_log.sub_step_log('Display pci info')
     cmd = 'lspci'
     guest_session.guest_cmd(cmd)
 
-    main_step_log('Step 5. reboot dst guest and login dmesg')
+    step_log.main_step_log('Step 5. reboot dst guest and login dmesg')
     dst_serial.serial_cmd('reboot')
     dst_serial.serial_login(prompt_login=True)
     dst_serial.serial_cmd('dmesg')
     print dst_serial.serial_output('dmesg')
 
-    #src_remote_qmp.close()
     src_remote_qmp.qmp_cmd('"quit"')
     dst_remote_qmp.qmp_cmd('"quit"')
     dst_remote_qmp.close()
     dst_serial.close()
     src_serial.close()
 
-    total_test_time(start_time)
+    step_log.total_test_time(start_time)
 
 if __name__ == '__main__':
     run_case()
