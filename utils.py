@@ -1,7 +1,6 @@
-import os,sys,time,subprocess
+import os,time
 import pexpect
 import subprocess
-import socket
 import select
 import re
 import usr_exceptions
@@ -144,6 +143,7 @@ def total_test_time(start_time, format=None):
     else:
         print 'Total of test time : %s min %s sec' %(int(test_time / 60), int(test_time - int(test_time / 60) * 60 ))
     pass
+
 
 if __name__ =='__main__':
     output = remote_ssh_cmd('10.16.67.19', 'kvmautotest', 'uname -r')
