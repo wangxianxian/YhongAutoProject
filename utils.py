@@ -144,6 +144,7 @@ def total_test_time(start_time, format=None):
         print 'Total of test time : %s min %s sec' %(int(test_time / 60), int(test_time - int(test_time / 60) * 60 ))
     pass
 
+
 if __name__ =='__main__':
     output = remote_ssh_cmd('10.16.67.19', 'kvmautotest', 'uname -r')
     #print output

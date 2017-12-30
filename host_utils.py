@@ -4,6 +4,7 @@ import re
 import os
 import time
 from vm import TestCmd
+import threading
 
 def check_guest_thread():
     pid = ''
@@ -78,7 +79,7 @@ def pre_install_tools():
 
 #========================Class Host_Session=====================================#
 class HostSession(TestCmd):
-    def __init__(self, case_id, timeout=None):
+    def __init__(self, case_id=None, timeout=None):
         TestCmd.__init__(self, case_id, timeout=timeout)
 
     def check_guest_thread(self):
@@ -135,16 +136,17 @@ class HostSession(TestCmd):
         TestCmd.log_echo_file(self, cmd)
         TestCmd.subprocess_cmd_v2(self, cmd)
 
-    def open_vnc_display(host_ip, vnc_host_ip, dst_passwd, port):
+    def open_vnc_display(self, host_ip, vnc_host_ip, dst_passwd, port):
         vnc_cmd = 'vncviewer %s:%s AutoSelect=0' % (host_ip, port)
-        TestCmd.subprocess_cmd_v2(vnc_host_ip, dst_passwd, vnc_cmd)
+        TestCmd.subprocess_cmd_v2(self, vnc_cmd)
 
     def boot_guest(self, cmd, timeout=60):
-        sub_guest = TestCmd.subprocess_cmd_v2(self, cmd, enable_output=False)
+        sub_guest = TestCmd.subprocess_cmd_v2(self, cmd=cmd, enable_output=False)
         time.sleep(2)
 
     def boot_guest_v2(self, cmd, timeout=60):
-        fd = TestCmd.subprocess_cmd_v2(self, cmd, enable_output=False)
+        guest_mutex = threading.Lock()
+        fd = TestCmd.subprocess_cmd_v2(self, cmd=cmd, enable_output=False)
         check_qemu_fd_stdout(fd)
 
     def install_qemu(self, qemu_ver=None):

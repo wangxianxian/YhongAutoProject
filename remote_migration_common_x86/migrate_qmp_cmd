@@ -1,0 +1,12 @@
+{ 'execute': 'qmp_capabilities' }
+{"return": {}}
+{"execute": "query-status"}
+{"return": {"status": "running", "singlestep": false, "running": true}}
+{"execute": "stop"}
+{"timestamp": {"seconds": 1514559611, "microseconds": 821956}, "event": "STOP"}
+{"return": {}}
+{"execute": "migrate","arguments":{"uri": "exec:gzip -c > /home/yhong/yhong-auto-project/STATEFILE.gz"}}
+{"return": {}}
+{"execute": "query-migrate"}
+{"return": {"status": "completed", "setup-time": 16, "downtime": 5, "total-time": 45355, "ram": {"total": 4312604672, "postcopy-requests": 0, "dirty-sync-count": 3, "page-size": 4096, "remaining": 0, "mbps": 242.856415, "transferred": 1376512519, "duplicate": 719053, "dirty-pages-rate": 0, "skipped": 0, "normal-bytes": 1367363584, "normal": 333829}}}
+{"execute": "quit"}

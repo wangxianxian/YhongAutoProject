@@ -246,7 +246,7 @@ class RemoteSerialMonitor(RemoteMonitor):
 #===========================================Class v2====================================================#
 class MonitorFile_v2(Test):
     CONNECT_TIMEOUT = 60
-    DATA_AVAILABLE_TIMEOUT = 3
+    DATA_AVAILABLE_TIMEOUT = 1
     def __init__(self, case_id, filename, timeout=None):
         self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         #self._socket.settimeout(self.CONNECT_TIMEOUT)
@@ -302,7 +302,7 @@ class MonitorFile_v2(Test):
 
 class SerialMonitorFile_v2(MonitorFile_v2):
     def __init__(self, case_id, filename, timeout=None):
-        MonitorFile_v2.__init__(self, case_id=case_id, filename=filename, timeout=timeout)
+       MonitorFile_v2.__init__(self, case_id=case_id, filename=filename, timeout=timeout)
 
     def serial_login(self, prompt_login=False, passwd='kvmautotest', timeout=60):
         if (prompt_login == True):
@@ -456,6 +456,8 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
         if (prompt_login == True):
             while time.time() < end_time:
                 output = RemoteMonitor_v2.rec_data(self)
+                if re.findall(r'Call Trace:', output):
+                    raise RemoteQMPMonitor_v2.test_error(self, 'Guest hit call trace')
                 if re.search(r"login:", output):
                     print output
                     RemoteMonitor_v2.log_echo_file(self, output)

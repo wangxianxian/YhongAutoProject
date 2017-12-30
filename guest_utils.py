@@ -30,16 +30,13 @@ class GuestSession_v2(TestCmd):
         TestCmd.__init__(self, case_id=case_id, timeout=timeout)
 
     def exc_cmd_guest(self, ip, passwd, cmd, timeout=600):
-        rept_num = 90
-        space_num = 1
-        print ('<--%s--> \n Executing guest command: \n    %s' % (time.ctime(), cmd))
+        print cmd
         output = TestCmd.remote_ssh_cmd(self, ip=ip, passwd=passwd, cmd=cmd, timeout=timeout)
-        print ('%sActual ouput: \n%s' % ((' ' * space_num), output))
-        TestCmd.log_echo_file(self, log_str=output)
+        print output
         return output
 
     def guest_cmd(self, cmd, timeout=300):
-        return self.exc_cmd_guest(self.__ip, self.__passwd, cmd, timeout=timeout)
+        return self.exc_cmd_guest(self.__ip, self.__passwd, cmd=cmd, timeout=timeout)
 
     def guest_system_dev(self, enable_output=True):
         cmd = 'ls /dev/[svh]d*'

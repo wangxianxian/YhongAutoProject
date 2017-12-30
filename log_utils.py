@@ -36,21 +36,21 @@ def log_echo_file(case_id=None,log_str=None):
 
 #=================================================#
 class StepLog(Test):
-    def __init__(self, case_id, tiemout=None):
+    def __init__(self, case_id=None, tiemout=None):
         Test.__init__(self, case_id=case_id, timeout=tiemout)
 
     def main_step_log(self, log):
         log_tag = '='
-        log_tag_rept = 5
-        print ('%s %s %s' %(log_tag*log_tag_rept, log, log_tag*log_tag_rept))
-        log_info = '%s %s %s' %(log_tag*log_tag_rept, log, log_tag*log_tag_rept)
+        log_tag_rept = 7
+        log_info = '%s Step %s %s' %(log_tag*log_tag_rept, log, log_tag*log_tag_rept)
+        print log_info
         Test.log_echo_file(self, log_str=log_info)
 
     def sub_step_log(self, str):
         log_tag = '-'
-        log_tag_rept = 3
-        print ('%s %s %s' %(log_tag*log_tag_rept, str, log_tag*log_tag_rept))
+        log_tag_rept = 5
         log_info = '%s %s %s' %(log_tag*log_tag_rept, str, log_tag*log_tag_rept)
+        print log_info
         Test.log_echo_file(self, log_str=log_info)
 
 if __name__ == '__main__':

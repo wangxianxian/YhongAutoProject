@@ -2,17 +2,13 @@ import os
 import time
 import pexpect
 import subprocess
+import socket
+import usr_exceptions
+import re
 
-
-class VM():
+class Test():
     def __init__(self, case_id=None, timeout=None):
         self._case_id = case_id
-
-
-class Test(VM):
-    def __init__(self, case_id=None, timeout=None):
-        #self._case_id = case_id
-        VM.__init__(self, case_id=case_id, timeout=timeout)
 
     def log_echo_file(self, log_str=None):
         pre_path = os.getcwd()
@@ -37,6 +33,9 @@ class Test(VM):
         else:
             try:
                 run_log = open(log_file, "a")
+                start_info = 'Start to run %s\n' % (self._case_id)
+                run_log.write(start_info)
+                run_log.write('================================================\n')
                 for line in log_str.splitlines():
                     timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
                     run_log.write(
@@ -46,15 +45,43 @@ class Test(VM):
                 txt += "Log content: %s\n" % log_str
                 txt += "Exception error: %s" % err
 
-    def total_test_time(self, start_time, timeout=None):
+    def total_test_time(self, start_time):
         test_time = time.time() - start_time
         if format == 'sec':
             print 'Total of test time :', test_time, 'sec'
         elif format == 'min':
             print 'Total of test time :', int(test_time / 60), 'min'
         else:
-            print 'Total of test time : %s min %s sec' % (
+            time_info =  'Total of test time : %s min %s sec' % (
             int(test_time / 60), int(test_time - int(test_time / 60) * 60))
+            print time_info
+            self.log_echo_file(log_str=time_info)
+
+    def open_vnc(self, ip, port, timeout=10):
+        self.vnc_ip = ip
+        self.vnc_port = port
+        data = ''
+        vnc_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        vnc_socket.connect((self.vnc_ip, self.vnc_port))
+        requet = 'Trying to connect vnc'
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            vnc_socket.send(requet)
+            data = vnc_socket.recv(1024)
+            if data:
+                break
+        print 'Client recevied :', data
+        vnc_socket.close()
+
+    def test_error(self, err_info):
+        self.log_echo_file(log_str=err_info)
+        raise usr_exceptions.Error(err_info)
+
+    def test_pass(self):
+        pass_info = '================================================\n'
+        pass_info += 'Case %s --- Pass \n' % self._case_id.split(':')[0]
+        print pass_info
+        self.log_echo_file(log_str=pass_info)
 
 class TestCmd(Test):
     def __init__(self, case_id=None, timeout=None):
@@ -90,6 +117,7 @@ class TestCmd(Test):
                 ssh.expect('password: ')
                 ssh.sendline(passwd)
             ssh.sendline(cmd)
+            Test.log_echo_file(self, log_str=cmd)
             output = self._remove_remote_command_echo(ssh.read(), cmd)
             Test.log_echo_file(self, log_str=output)
 
