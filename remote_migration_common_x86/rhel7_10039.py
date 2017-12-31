@@ -8,8 +8,10 @@ from monitor import RemoteSerialMonitor_v2, RemoteQMPMonitor_v2
 from log_utils import StepLog
 from config import GUEST_PASSWD
 import re
+import threading
 
-def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
+def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, timeout=60):
+    #with threadlock:
     start_time = time.time()
     SRC_HOST_IP = src_ip
     DST_HOST_IP = dst_ip
@@ -56,6 +58,10 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
         '-device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
         '-netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown ' \
         '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
+        '-drive file=/home/yhong/yhong-auto-project/data-disk0.qcow2,format=qcow2,if=none,id=drive-virtio-blk0,werror=stop,rerror=stop ' \
+        '-device virtio-blk-pci,drive=drive-virtio-blk0,id=virtio-blk0,bus=pci.0,addr=10,bootindex=10 ' \
+        '-drive file=/home/yhong/yhong-auto-project/data-disk1.qcow2,if=none,id=drive_r4,format=qcow2,cache=none,aio=native,werror=stop,rerror=stop ' \
+        '-device scsi-hd,drive=drive_r4,id=r4,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=1 ' \
         '-m 4G ' \
         '-smp 4 ' \
         '-cpu SandyBridge ' \
@@ -67,10 +73,10 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
         '-vnc :30 ' \
         '-rtc base=localtime,clock=vm,driftfix=slew ' \
         '-boot order=cdn,once=c,menu=off,strict=off ' \
-        '-monitor stdio ' \
-        '-incoming "exec: gzip -c -d /home/yhong/yhong-auto-project/STATEFILE.gz" '
+        '-incoming tcp:0:4000 ' \
+        '-monitor stdio '
 
-    case_id = 'RHEL7-10022'
+    case_id = 'RHEL7-100039'
     case_id += time.strftime(":%Y-%m-%d-%H:%M:%S")
     step_log = StepLog(case_id)
     src_host_session = HostSession(case_id)
@@ -87,19 +93,28 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
 
     time.sleep(3)
 
-    step_log.main_step_log('1. Boot a guest.')
+    step_log.main_step_log('1. Boot guest with one system disk.')
     src_host_session.boot_guest_v2(cmd_x86_src)
 
     step_log.sub_step_log('Check if guest boot up')
     src_host_session.check_guest_thread()
 
     time.sleep(5)
-    src_host_session.open_vnc(ip='10.72.12.37', port=59999)
+    src_host_session.vnc_daemon(ip='10.72.12.37', port=59999, timeout=10)
+    #thread = threading.Thread(target=src_host_session.open_vnc, args=('10.72.12.37', 59999, 10))
+    #thread.daemon = True
+    #thread.start()
 
     step_log.sub_step_log('Check the status of src guest')
     src_remote_qmp = RemoteQMPMonitor_v2(case_id, SRC_HOST_IP, 3333)
     src_remote_qmp.qmp_initial()
     src_remote_qmp.qmp_cmd('"query-status"')
+
+    step_log.sub_step_log('Check guest disk')
+    output = src_remote_qmp.qmp_cmd('"query-block"')
+    if not re.findall(r'drive_image1', output):
+        print 'No found system disk\n'
+        raise src_remote_qmp.test_error('No found system disk')
 
     step_log.sub_step_log('Connecting to src serial')
     src_serial = RemoteSerialMonitor_v2(case_id, SRC_HOST_IP, 4444)
@@ -108,19 +123,51 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
     SRC_GUEST_IP = src_serial.serial_get_ip()
 
     print 'src guest ip :' ,SRC_GUEST_IP
-    guest_session = GuestSession_v2(case_id=case_id, ip=SRC_GUEST_IP, passwd=GUEST_PASSWD)
+    src_guest_session = GuestSession_v2(case_id=case_id, ip=SRC_GUEST_IP, passwd=GUEST_PASSWD)
     step_log.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'
-    output = guest_session.guest_cmd(cmd)
+    output = src_guest_session.guest_cmd(cmd)
     if re.findall(r'Call Trace:', output):
-        guest_session.test_error('Guest hit call trace')
+        src_guest_session.test_error('Guest hit call trace')
 
-    step_log.main_step_log('2. Save VM state into a compressed file in host')
-    src_remote_qmp.qmp_cmd('"stop"')
-    src_remote_qmp.qmp_cmd('"migrate_set_speed", "arguments": { "value": 104857600 }')
-    src_remote_qmp.qmp_cmd('"migrate","arguments":{"uri": "exec:gzip -c > /home/yhong/yhong-auto-project/STATEFILE.gz"}')
+    step_log.main_step_log('2. Hot add two disk(should also in shared storage).')
+    step_log.sub_step_log('2.1 Create two image on src host')
+    src_host_session.create_images('/home/yhong/yhong-auto-project/data-disk0.qcow2', '10G', 'qcow2')
+    src_host_session.create_images('/home/yhong/yhong-auto-project/data-disk1.qcow2', '20G', 'qcow2')
+
+    step_log.sub_step_log('2.2 Hot plug the above disks')
+    src_remote_qmp.qmp_cmd('"__com.redhat_drive_add", "arguments":'
+                           '{"file":"/home/yhong/yhong-auto-project/data-disk0.qcow2",'
+                           '"format":"qcow2","id":"drive-virtio-blk0"}')
+    src_remote_qmp.qmp_cmd('"device_add","arguments":{"driver":"virtio-blk-pci","drive":"drive-virtio-blk0",'
+                           '"id":"virtio-blk0","bus":"pci.0","addr":"10"}')
+    src_remote_qmp.qmp_cmd('"__com.redhat_drive_add", "arguments":'
+                           '{"file":"/home/yhong/yhong-auto-project/data-disk1.qcow2","format":"qcow2","id":"drive_r4"}')
+    src_remote_qmp.qmp_cmd('"device_add","arguments":{"driver":"scsi-hd",'
+                           '"drive":"drive_r4","id":"r4","bus":"virtio_scsi_pci0.0","channel":"0","scsi-id":"0","lun":"1"}')
+
+    step_log.sub_step_log('Check the hot plug disk on src guest')
+    output = src_remote_qmp.qmp_cmd('"query-block"')
+    if not re.findall(r'drive-virtio-blk0', output) or not re.findall(r'drive_r4', output):
+        raise src_remote_qmp.test_error('Hot plug disk failed on src')
+
+    step_log.main_step_log('3. Boot \'-incoming\' guest with disk added in step2 on des host. ')
+    cmd = 'ssh root@10.66.10.208 %s' % cmd_x86_dst
+    src_host_session.subprocess_cmd_v2(cmd, enable_output=False)
 
     time.sleep(3)
+    src_host_session.vnc_daemon(ip='10.72.12.37', port=58888)
+    #thread = threading.Thread(target=src_host_session.open_vnc, args=('10.72.12.37', 58888, 10))
+    #thread.daemon = True
+    #thread.start()
+
+    dst_remote_qmp = RemoteQMPMonitor_v2(case_id, DST_HOST_IP, 3333)
+    dst_remote_qmp.qmp_initial()
+    dst_remote_qmp.qmp_cmd('"query-status"')
+
+    step_log.main_step_log('4. Start live migration from src host')
+    cmd = '"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }'
+    src_remote_qmp.qmp_cmd(cmd)
 
     step_log.sub_step_log('Check the status of migration')
     cmd = '"query-migrate"'
@@ -128,68 +175,39 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
         output = src_remote_qmp.qmp_cmd(cmd)
         if re.findall(r'"remaining": 0', output):
             break
-        time.sleep(3)
+        time.sleep(5)
 
-    src_remote_qmp.qmp_cmd('"quit"')
-
-    step_log.main_step_log('3. Load the file in dest host(src host).')
-    src_host_session.boot_guest_v2(cmd_x86_dst)
-
-    step_log.sub_step_log('Check if guest boot up')
-    src_host_session.check_guest_thread()
-
-    time.sleep(3)
-
-    src_host_session.open_vnc(ip='10.72.12.37', port=59999)
-
-    step_log.sub_step_log('3.1 Login dst guest')
-    dst_remote_qmp = RemoteQMPMonitor_v2(case_id, SRC_HOST_IP, 3333)
-    dst_remote_qmp.qmp_initial()
-    dst_remote_qmp.qmp_cmd('"query-status"')
-    dst_remote_qmp.qmp_cmd('"cont"')
-
-    dst_serial = RemoteSerialMonitor_v2(case_id, SRC_HOST_IP, 4444)
+    step_log.sub_step_log('Login dst guest')
+    dst_serial = RemoteSerialMonitor_v2(case_id, '10.66.10.208', 4444)
     dst_serial.serial_login()
 
     DST_GUEST_IP = dst_serial.serial_get_ip()
 
     print 'dst guest ip :', DST_GUEST_IP
-    guest_session = GuestSession_v2(case_id=case_id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
 
-    step_log.main_step_log('4. Check if guest works well.')
+    step_log.sub_step_log('Check disk on dst guest')
+    output = src_remote_qmp.qmp_cmd('"query-block"')
+    if not re.findall(r'drive-virtio-blk0', output) or not re.findall(r'drive_r4', output):
+        raise src_remote_qmp.test_error('Hot plug disk failed on dst')
 
-    step_log.sub_step_log('4.1 Guest mouse and keyboard.')
-    pass
-
-    step_log.sub_step_log('4.2. Ping external host / copy file between guest and host')
-    external_host_ip = '10.66.10.208'
-    cmd_ping = 'ping %s -c 10' % external_host_ip
-    output = guest_session.guest_cmd(cmd_ping)
-    if re.findall(r'100% packet loss', output):
-        guest_session.test_error('Ping failed')
-
-    step_log.sub_step_log('4.3 dd a file inside guest.')
-    cmd_dd = 'dd if=/dev/zero of=/tmp/dd.io bs=512b count=2000 oflag=direct'
-    output = guest_session.guest_cmd(cmd_dd, timeout=60)
-    if not output:
-        guest_session.test_error('dd failed')
-
-    step_log.sub_step_log('check dmesg info')
+    dst_guest_session = GuestSession_v2(case_id=case_id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
+    step_log.sub_step_log('Check dmesg info on dst guest')
     cmd = 'dmesg'
-    output = guest_session.guest_cmd(cmd)
+    output = dst_guest_session.guest_cmd(cmd)
     if re.findall(r'Call Trace:', output):
-        guest_session.test_error('Guest hit call trace')
+        dst_guest_session.test_error('Guest hit call trace')
 
-    step_log.sub_step_log('4.4. Reboot and then shutdown guest.')
-    dst_serial.serial_cmd('reboot')
-
-    dst_serial.serial_login(prompt_login=True)
-
-    dst_serial.serial_cmd('shutdown -h now')
+    step_log.sub_step_log('Quit src guest')
+    src_remote_qmp.qmp_cmd('"quit"')
+    step_log.sub_step_log('Quit dst guest')
+    dst_remote_qmp.qmp_cmd('"quit"')
+    src_remote_qmp.close()
+    dst_remote_qmp.close()
+    dst_serial.close()
+    src_serial.close()
 
     src_host_session.test_pass()
     src_host_session.total_test_time(start_time=start_time)
 
 if __name__ == '__main__':
     run_case()
-

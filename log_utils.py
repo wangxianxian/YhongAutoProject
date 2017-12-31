@@ -50,8 +50,9 @@ class StepLog(Test):
         log_tag = '-'
         log_tag_rept = 5
         log_info = '%s %s %s' %(log_tag*log_tag_rept, str, log_tag*log_tag_rept)
-        print log_info
-        Test.log_echo_file(self, log_str=log_info)
+        Test.test_print(self, info=log_info)
+        #print log_info
+        #Test.log_echo_file(self, log_str=log_info)
 
 if __name__ == '__main__':
     main_step_log('This is a main step')

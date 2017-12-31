@@ -5,9 +5,10 @@ import subprocess
 import socket
 import usr_exceptions
 import re
+import threading
 
 class Test():
-    def __init__(self, case_id=None, timeout=None):
+    def __init__(self, case_id=None, timeout=60):
         self._case_id = case_id
 
     def log_echo_file(self, log_str=None):
@@ -45,6 +46,10 @@ class Test():
                 txt += "Log content: %s\n" % log_str
                 txt += "Exception error: %s" % err
 
+    def test_print(self, info):
+        print info
+        self.log_echo_file(log_str=info)
+
     def total_test_time(self, start_time):
         test_time = time.time() - start_time
         if format == 'sec':
@@ -54,8 +59,9 @@ class Test():
         else:
             time_info =  'Total of test time : %s min %s sec' % (
             int(test_time / 60), int(test_time - int(test_time / 60) * 60))
-            print time_info
-            self.log_echo_file(log_str=time_info)
+            self.test_print(info=time_info)
+            #print time_info
+            #self.log_echo_file(log_str=time_info)
 
     def open_vnc(self, ip, port, timeout=10):
         self.vnc_ip = ip
@@ -73,29 +79,39 @@ class Test():
         print 'Client recevied :', data
         vnc_socket.close()
 
+    def vnc_daemon(self, ip, port, timeout=10):
+        thread = threading.Thread(target=self.open_vnc, args=(ip, port, timeout))
+        thread.name = 'vnc'
+        thread.daemon = True
+        thread.start()
+
     def test_error(self, err_info):
+        err_info = 'Case Error: ' + err_info
         self.log_echo_file(log_str=err_info)
         raise usr_exceptions.Error(err_info)
 
     def test_pass(self):
         pass_info = '================================================\n'
         pass_info += 'Case %s --- Pass \n' % self._case_id.split(':')[0]
-        print pass_info
-        self.log_echo_file(log_str=pass_info)
+        self.test_print(info=pass_info)
+        #print pass_info
+        #self.log_echo_file(log_str=pass_info)
 
 class TestCmd(Test):
     def __init__(self, case_id=None, timeout=None):
         Test.__init__(self, case_id=case_id, timeout=timeout)
 
     def subprocess_cmd_v2(self, cmd, enable_output=True):
-        print cmd
+        #print cmd
+        Test.test_print(self, cmd)
         sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         fd = sub.stdout.fileno()
         if (enable_output == True):
             output = sub.communicate()[0]
-            print output
-            Test.log_echo_file(self, log_str=output)
+            self.test_print(info=output)
+            #print output
+            #Test.log_echo_file(self, log_str=output)
             return output, fd
         elif (enable_output == False):
             return fd
@@ -124,10 +140,12 @@ class TestCmd(Test):
         except pexpect.EOF:
             print "EOF"
             ssh.close()
+            raise Test.test_error(self, 'End of File')
 
         except pexpect.TIMEOUT:
             print "TIMEOUT"
             ssh.close()
+            raise Test.test_error(self, 'TIMEOUT')
         return output
 
     def remote_scp(self, dst_ip=None, passwd=None, src_file=None, dst_file=None, timeout=300):
@@ -147,10 +165,12 @@ class TestCmd(Test):
         except pexpect.EOF:
             print "EOF"
             ssh.close()
+            raise Test.test_error(self, 'End of File')
 
         except pexpect.TIMEOUT:
             print "TIMEOUT"
             ssh.close()
+            raise Test.test_error(self, 'TIMEOUT')
 
 def example():
     pass

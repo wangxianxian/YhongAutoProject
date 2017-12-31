@@ -5,6 +5,8 @@ import os
 import time
 from vm import TestCmd
 import threading
+import usr_exceptions
+import select
 
 def check_guest_thread():
     pid = ''
@@ -91,13 +93,15 @@ class HostSession(TestCmd):
         for line in output.splitlines():
             if re.findall(name, line):
                 pid = re.findall(r"\d+", line)[0]
-                print 'Found a yhong guest thread : pid =', pid
+                info =  'Found a yhong guest thread : pid = %s' % pid
+                TestCmd.test_print(self, info)
                 return pid
-        print 'No found yhong guest thread'
+        info =  'No found yhong guest thread'
+        TestCmd.test_print(self, info)
 
     def check_qemu_version(self):
         cmd_check = '/usr/libexec/qemu-kvm -version'
-        TestCmd.log_echo_file(self, cmd_check)
+        #TestCmd.log_echo_file(self, cmd_check)
         TestCmd.subprocess_cmd_v2(self, cmd_check)
 
     def kill_guest_thread(self, pid=None, timeout=5):
@@ -133,7 +137,7 @@ class HostSession(TestCmd):
 
     def check_host_kernel_ver(self):
         cmd = 'uname -r'
-        TestCmd.log_echo_file(self, cmd)
+        #TestCmd.log_echo_file(self, cmd)
         TestCmd.subprocess_cmd_v2(self, cmd)
 
     def open_vnc_display(self, host_ip, vnc_host_ip, dst_passwd, port):
@@ -144,10 +148,35 @@ class HostSession(TestCmd):
         sub_guest = TestCmd.subprocess_cmd_v2(self, cmd=cmd, enable_output=False)
         time.sleep(2)
 
+    def create_images(self, image_file=None, size=None, format=None):
+        cmd = 'qemu-img create -f %s %s %s' % (format, image_file, size)
+        #TestCmd.log_echo_file(self, log_str=cmd)
+        TestCmd.subprocess_cmd_v2(self, cmd=cmd)
+
+    def check_qemu_fd_stdout(self, fd):
+        #while select.select([fd], [], [])[0]:
+        while True:
+            print '===>From class HostSession : Checking the qemu output...\n '
+            print '===>From class HostSession : threads num : %s \n' % (threading.active_count())
+            print('===>From class HostSession : Current thread name : %s \n' % (threading.current_thread().name))
+            print('===>From class HostSession : All threads : %s \n' % (threading.enumerate()))
+            time.sleep(1)
+            if not fd:
+                break
+            else:
+                tmp = os.read(fd, 8192)
+                if re.search(r'qemu-kvm:', tmp):
+                    print tmp
+                    info = 'Guest boot failed!! \n%s' % tmp
+                    raise TestCmd.test_error(self, info)
+
     def boot_guest_v2(self, cmd, timeout=60):
-        guest_mutex = threading.Lock()
         fd = TestCmd.subprocess_cmd_v2(self, cmd=cmd, enable_output=False)
-        check_qemu_fd_stdout(fd)
+        if fd:
+            thread = threading.Thread(target=self.check_qemu_fd_stdout, args=(fd,))
+            #thread.name =
+            thread.daemon = True
+            thread.start()
 
     def install_qemu(self, qemu_ver=None):
         pass
