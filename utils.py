@@ -4,6 +4,7 @@ import subprocess
 import select
 import re
 import usr_exceptions
+import threading
 
 # Remove the echoed command
 def remove_remote_command_echo(output, cmd):
@@ -51,14 +52,16 @@ def subprocess_cmd(cmd, enable_output=True):
         return sub
 
 def check_qemu_fd_stdout(fd=None, timeout=3):
-    while select.select([fd], [], [], timeout)[0]:
+    #while select.select([fd], [], [], timeout)[0]:
+    while True:
+        #print 'checking the qemu output...'
+        time.sleep(3)
         tmp = os.read(fd, 819200)
         if re.search(r'qemu-kvm:', tmp):
             print tmp
             info = 'Guest boot failed!! \n%s' %tmp
             raise usr_exceptions.GuestBootFailed(info)
-        else:
-            return True
+
 
 def subprocess_cmd_v2(cmd, enable_output=True):
     print cmd
@@ -144,6 +147,10 @@ def total_test_time(start_time, format=None):
         print 'Total of test time : %s min %s sec' %(int(test_time / 60), int(test_time - int(test_time / 60) * 60 ))
     pass
 
+def create_test_id(case_id):
+    id = case_id
+    id += time.strftime(":%Y-%m-%d-%H:%M:%S")
+    return  id
 
 if __name__ =='__main__':
     output = remote_ssh_cmd('10.16.67.19', 'kvmautotest', 'uname -r')

@@ -253,11 +253,13 @@ class MonitorFile_v2(Test):
         Test.__init__(self, case_id=case_id,timeout=timeout)
         try:
             self._socket.connect(filename)
-            Test.log_echo_file(self, 'Connect to monitor successfully')
-            print 'Connect to monitor successfully'
+            Test.test_print(self, 'Connect to monitor successfully')
+            #Test.log_echo_file(self, 'Connect to monitor successfully')
+            #print 'Connect to monitor successfully'
         except socket.error:
-            Test.log_echo_file(self, 'Fail to connect to monitor')
-            print 'Fail to connect to monitor : ', filename
+            Test.test_print(self, 'Fail to connect to monitor')
+            #Test.log_echo_file(self, 'Fail to connect to monitor')
+            #print 'Fail to connect to monitor : ', filename
 
     def __del__(self):
         self._socket.close()
@@ -270,16 +272,19 @@ class MonitorFile_v2(Test):
         try:
             return bool(select.select([self._socket], [], [], timeout)[0])
         except socket.error:
-            Test.log_echo_file(self, 'Verifying data on monitor socket')
-            print 'Verifying data on monitor socket'
+            Test.test_print(self, 'Verifying data on monitor socket')
+            #Test.log_echo_file(self, 'Verifying data on monitor socket')
+            #print 'Verifying data on monitor socket'
 
     def send_cmd(self, cmd):
         try:
             self._socket.sendall(cmd + '\n')
+            Test.log_echo_file(self, cmd)
 
         except socket.error:
-            Test.log_echo_file(self, 'Fail to send command to monitor.')
-            print 'Fail to send command to monitor.'
+            Test.test_print(self, 'Fail to send command to monitor.')
+            #Test.log_echo_file(self, 'Fail to send command to monitor.')
+            #print 'Fail to send command to monitor.'
 
     def rec_data(self):
         s = ''
@@ -290,14 +295,16 @@ class MonitorFile_v2(Test):
                 data = self._socket.recv(8192)
                 #data = remove_monitor_cmd_echo(output)
             except socket.error:
-                Test.log_echo_file(self, 'Fail to receive data from monitor.')
-                print 'Fail to receive data from monitor.'
+                Test.test_print(self, 'Fail to receive data from monitor.')
+                #Test.log_echo_file(self, 'Fail to receive data from monitor.')
+                #print 'Fail to receive data from monitor.'
                 return None
 
             if not data:
                 break
             #print 'Monitor data timestamp :', time.ctime()
             s += data
+        #Test.log_echo_file(self, s)
         return s
 
 class SerialMonitorFile_v2(MonitorFile_v2):
@@ -309,19 +316,22 @@ class SerialMonitorFile_v2(MonitorFile_v2):
             while True:
                 output = MonitorFile_v2.rec_data(self)
                 #print type(output)
-                MonitorFile_v2.log_echo_file(self, log_str=output)
-                print output
+                MonitorFile_v2.test_print(self, info=output)
+                #MonitorFile_v2.log_echo_file(self, log_str=output)
+                #print output
                 if re.search(r"login:", output):
                     break
         cmd = 'root'
         MonitorFile_v2.send_cmd(self, cmd)
         output = MonitorFile_v2.rec_data(self)
-        MonitorFile_v2.log_echo_file(self, log_str=output)
-        print output
+        MonitorFile_v2.test_print(self, info=output)
+        #MonitorFile_v2.log_echo_file(self, log_str=output)
+        #print output
         MonitorFile_v2.send_cmd(self, passwd)
         output = MonitorFile_v2.rec_data(self)
-        MonitorFile_v2.log_echo_file(self, log_str=output)
-        print output
+        MonitorFile_v2.test_print(self, info=output)
+        #MonitorFile_v2.log_echo_file(self, log_str=output)
+        #print output
 
     def serial_cmd(self, cmd):
         print cmd
@@ -359,14 +369,16 @@ class QMPMonitorFile_v2(MonitorFile_v2):
 
     def qmp_cmd(self, cmd):
         cmd ='{"execute": %s}' % cmd
-        print cmd
+        #print cmd
+        MonitorFile_v2.test_print(self, info=cmd)
         if re.search(r'quit', cmd):
             MonitorFile_v2.send_cmd(self, cmd)
         else:
             MonitorFile_v2.send_cmd(self, cmd)
             output = MonitorFile_v2.rec_data(self)
-            MonitorFile_v2.log_echo_file(self, log_str=output)
-            print output
+            MonitorFile_v2.test_print(self, info=output)
+            #MonitorFile_v2.log_echo_file(self, log_str=output)
+            #print output
             return output
 
 class RemoteMonitor_v2(Test):
@@ -380,11 +392,13 @@ class RemoteMonitor_v2(Test):
         self._socket.settimeout(self.CONNECT_TIMEOUT)
         try:
             self._socket.connect(self.address)
-            Test.log_echo_file(self, 'Connect to monitor successfully')
-            print 'Connect to monitor successfully'
+            Test.test_print(self, 'Connect to monitor successfully')
+            #Test.log_echo_file(self, 'Connect to monitor successfully')
+            #print 'Connect to monitor successfully'
         except socket.error:
-            Test.log_echo_file(self, 'Fail to connect to monitor')
-            print 'Fail to connect to monitor'
+            Test.test_print(self, 'Fail to connect to monitor')
+            #Test.log_echo_file(self, 'Fail to connect to monitor')
+            #print 'Fail to connect to monitor'
             raise SocketConnectFailed('Fail to connect to monitor')
 
     def __del__(self):
@@ -398,16 +412,19 @@ class RemoteMonitor_v2(Test):
         try:
             return bool(select.select([self._socket], [], [], timeout)[0])
         except socket.error:
-            Test.log_echo_file(self, 'Verifying data on monitor socket')
-            print 'Verifying data on monitor socket'
+            Test.test_print(self, 'Verifying data on monitor socket')
+            #Test.log_echo_file(self, 'Verifying data on monitor socket')
+            #print 'Verifying data on monitor socket'
 
     def send_cmd(self, cmd):
         try:
             self._socket.sendall(cmd + '\n')
+            #Test.log_echo_file(self, cmd)
 
         except socket.error:
-            Test.log_echo_file(self, 'Fail to send command to monitor.')
-            print 'Fail to send command to monitor.'
+            Test.test_print(self, 'Fail to send command to monitor.')
+            #Test.log_echo_file(self, 'Fail to send command to monitor.')
+            #print 'Fail to send command to monitor.'
 
     def rec_data(self):
         s = ''
@@ -416,8 +433,9 @@ class RemoteMonitor_v2(Test):
             try:
                 data = self._socket.recv(1024)
             except socket.error:
-                Test.log_echo_file(self, 'Fail to receive data from monitor.')
-                print 'Fail to receive data from monitor.'
+                Test.test_print(self, 'Fail to receive data from monitor.')
+                #Test.log_echo_file(self, 'Fail to receive data from monitor.')
+                #print 'Fail to receive data from monitor.'
                 return None
 
             if not data:
@@ -432,19 +450,22 @@ class RemoteQMPMonitor_v2(RemoteMonitor_v2):
 
     def qmp_initial(self):
         cmd = '{"execute":"qmp_capabilities"}'
+        RemoteMonitor_v2.test_print(self, cmd)
         RemoteMonitor_v2.send_cmd(self, cmd)
 
     def qmp_cmd(self, cmd):
         cmd ='{"execute": %s}' % cmd
-        print cmd
-        Test.log_echo_file(self, log_str=cmd)
+        #print cmd
+        #Test.log_echo_file(self, log_str=cmd)
+        RemoteMonitor_v2.test_print(self, cmd)
         if re.search(r'quit', cmd):
             RemoteMonitor_v2.send_cmd(self, cmd)
         else:
             RemoteMonitor_v2.send_cmd(self, cmd)
             output = RemoteMonitor_v2.rec_data(self)
-            RemoteMonitor_v2.log_echo_file(self, output)
-            print output
+            RemoteMonitor_v2.test_print(self, output)
+            #RemoteMonitor_v2.log_echo_file(self, output)
+            #print output
             return output
 
 class RemoteSerialMonitor_v2(RemoteMonitor_v2):
@@ -459,24 +480,30 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
                 if re.findall(r'Call Trace:', output):
                     raise RemoteQMPMonitor_v2.test_error(self, 'Guest hit call trace')
                 if re.search(r"login:", output):
-                    print output
-                    RemoteMonitor_v2.log_echo_file(self, output)
+                    RemoteMonitor_v2.test_print(self, output)
+                    #print output
+                    #RemoteMonitor_v2.log_echo_file(self, output)
                     break
 
         cmd = 'root'
         RemoteMonitor_v2.send_cmd(self, cmd)
         output = RemoteMonitor_v2.rec_data(self)
-        RemoteMonitor_v2.log_echo_file(self, output)
-        print output
+        RemoteMonitor_v2.test_print(self, output)
+        #RemoteMonitor_v2.log_echo_file(self, output)
+        #print output
         RemoteMonitor_v2.send_cmd(self, passwd)
         output = RemoteMonitor_v2.rec_data(self)
-        RemoteMonitor_v2.log_echo_file(self, output)
+        RemoteMonitor_v2.test_print(self, output)
+        #output = RemoteMonitor_v2.rec_data(self)
+        #RemoteMonitor_v2.log_echo_file(self, output)
         if not output:
-            raise Timeout('Login time out...')
+            #raise Timeout('Login time out...')
+            raise RemoteMonitor_v2.test_error(self, 'login time out..')
         print output
 
     def serial_cmd(self, cmd):
-        print cmd
+        #print cmd
+        RemoteMonitor_v2.test_print(self, cmd)
         RemoteMonitor_v2.send_cmd(self, cmd)
         #output = RemoteMonitor.rec_data(self)
         #print output
@@ -495,12 +522,14 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
         output = self.serial_output(cmd)
         for ip in output.splitlines():
             if not ip:
-                raise NoGetIP('Could not get ip adress!')
-            print 'ip :', ip
+                raise RemoteMonitor_v2.test_error(self, 'Could not get ip adress!')
+            #print 'ip :', ip
             if ip == '127.0.0.1':
                 continue
             else:
-                RemoteMonitor_v2.log_echo_file(self, ip)
+                info = 'Guest ip : ip %s' %ip
+                RemoteMonitor_v2.test_print(self, info)
+                #RemoteMonitor_v2.log_echo_file(self, ip)
                 return ip
 
 

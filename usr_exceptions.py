@@ -25,7 +25,7 @@ class GuestBootFailed(Exception):
     def __str__(self):
         return self.error_info
 
-class Error(Exception, Test):
+class Error(Exception):
     def __init__(self, str):
         self.error_info = str
     def __str__(self):
