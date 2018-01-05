@@ -4,14 +4,13 @@ import pexpect
 import subprocess
 import socket
 import usr_exceptions
-import re
 import threading
 
 class Test():
-    def __init__(self, case_id=None, timeout=60):
+    def __init__(self, case_id):
         self._case_id = case_id
 
-    def log_echo_file(self, log_str=None):
+    def log_echo_file(self, log_str):
         pre_path = os.getcwd()
         path = pre_path + '/run_log/'
         if not os.path.exists(path):
@@ -25,26 +24,23 @@ class Test():
                 run_log = open(log_file, "a")
                 for line in log_str.splitlines():
                     timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
-                    run_log.write(
-                        "%s: %s\n" % (timestamp, line))
+                    run_log.write("%s: %s\n" % (timestamp, line))
             except Exception, err:
                 txt = "Fail to record log to %s.\n" % log_file
                 txt += "Log content: %s\n" % log_str
                 txt += "Exception error: %s" % err
+                self.test_error(err_info=txt)
         else:
             try:
                 run_log = open(log_file, "a")
-                start_info = 'Start to run %s\n' % (self._case_id)
-                run_log.write(start_info)
-                run_log.write('================================================\n')
                 for line in log_str.splitlines():
                     timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
-                    run_log.write(
-                        "%s: %s\n" % (timestamp, line))
+                    run_log.write("%s: %s\n" % (timestamp, line))
             except Exception, err:
                 txt = "Fail to record log to %s.\n" % log_file
                 txt += "Log content: %s\n" % log_str
                 txt += "Exception error: %s" % err
+                self.test_error(err_info=txt)
 
     def test_print(self, info):
         print info
@@ -60,8 +56,6 @@ class Test():
             time_info =  'Total of test time : %s min %s sec' % (
             int(test_time / 60), int(test_time - int(test_time / 60) * 60))
             self.test_print(info=time_info)
-            #print time_info
-            #self.log_echo_file(log_str=time_info)
 
     def open_vnc(self, ip, port, timeout=10):
         self.vnc_ip = ip
@@ -91,18 +85,20 @@ class Test():
         raise usr_exceptions.Error(err_info)
 
     def test_pass(self):
-        pass_info = '================================================\n'
+        pass_info = '%s \n' %('*' * 50)
         pass_info += 'Case %s --- Pass \n' % self._case_id.split(':')[0]
         self.test_print(info=pass_info)
-        #print pass_info
-        #self.log_echo_file(log_str=pass_info)
+
+    def test_timeout(self):
+        err_info = 'Case Error: ' + 'TIME OUT'
+        self.log_echo_file(log_str=err_info)
+        raise usr_exceptions.Error(err_info)
 
 class TestCmd(Test):
-    def __init__(self, case_id=None, timeout=None):
-        Test.__init__(self, case_id=case_id, timeout=timeout)
+    def __init__(self, case_id):
+        Test.__init__(self, case_id=case_id)
 
     def subprocess_cmd_v2(self, cmd, enable_output=True):
-        #print cmd
         Test.test_print(self, cmd)
         sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -110,67 +106,133 @@ class TestCmd(Test):
         if (enable_output == True):
             output = sub.communicate()[0]
             self.test_print(info=output)
-            #print output
-            #Test.log_echo_file(self, log_str=output)
             return output, fd
         elif (enable_output == False):
             return fd
 
-    def _remove_remote_command_echo(self, output=None, cmd=None):
-        if output and output.splitlines()[1] == cmd:
-            output = "".join(output.splitlines(True)[2:])
+    def local_ssh_cmd(self, cmd, timeout=600):
+        ssh = pexpect.spawn(cmd, timeout=timeout)
+        try:
+            ssh.sendline(cmd)
+            #output = self.remove_local_command_echo_endline(ssh.read(), cmd)
+            output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+            #Test.test_print(self, info=output)
+            return output
+
+        except pexpect.EOF:
+            err_info = 'End of File'
+            Test.test_print(self, info=err_info)
+            ssh.close()
+            Test.test_error(self, err_info)
+
+        except pexpect.TIMEOUT:
+            err_info = 'Command : %s TIMEOUT ' % (cmd)
+            Test.test_print(self, info=err_info)
+            ssh.close()
+            Test.test_error(self, err_info)
+
+
+    def remove_cmd_echo_blank_space(self, output, cmd):
+        if output:
+            lines = output.splitlines()
+            count = 0
+            for line in lines:
+                #print '[%d]:%s;%d' %(count, line, len(line))
+                if line == cmd or line == '\n' \
+                        or len(line) == 1 \
+                        or len(line) == 0:
+                    #print 'count = %s' % count
+                    count = count + 1
+                    lines.remove(line)
+                    continue
+                count = count + 1
+            output = "\n".join(lines)
         return output
 
-    def remote_ssh_cmd(self, ip=None, passwd=None, cmd=None, timeout=600):
+    def remote_ssh_cmd_v2(self, ip, passwd, cmd, timeout=600):
         output = ''
         ssh = pexpect.spawn('ssh root@%s "%s"' % (ip, cmd), timeout=timeout)
         try:
-            i = ssh.expect(['password:', 'continue connecting (yes/no)?'], timeout=10)
+            i = ssh.expect(['password:', 'continue connecting (yes/no)?', '\n'], timeout=10)
             if i == 0:
                 ssh.sendline(passwd)
+                ssh.sendline(cmd)
+                output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                #Test.test_print(self, info=output)
+                return output
             elif i == 1:
                 ssh.sendline('yes\n')
                 ssh.expect('password: ')
                 ssh.sendline(passwd)
-            ssh.sendline(cmd)
-            Test.log_echo_file(self, log_str=cmd)
-            output = self._remove_remote_command_echo(ssh.read(), cmd)
-            Test.log_echo_file(self, log_str=output)
+                ssh.sendline(cmd)
+                output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                #Test.test_print(self, info=output)
+                return output
+            elif i == 2:
+                ssh.sendline(cmd)
+                output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                #Test.test_print(self, info=output)
+                return output
 
         except pexpect.EOF:
-            print "EOF"
+            err_info = 'End of File'
+            Test.test_print(self, info=err_info)
             ssh.close()
-            raise Test.test_error(self, 'End of File')
+            Test.test_error(self, err_info)
 
         except pexpect.TIMEOUT:
-            print "TIMEOUT"
+            err_info = 'Command : %s TIMEOUT ' % (cmd)
+            Test.test_print(self, info=err_info)
             ssh.close()
-            raise Test.test_error(self, 'TIMEOUT')
-        return output
+            Test.test_error(self, err_info)
 
-    def remote_scp(self, dst_ip=None, passwd=None, src_file=None, dst_file=None, timeout=300):
-        ssh = pexpect.spawn('scp %s %s:%s' % (src_file, dst_ip, dst_file), timeout=timeout)
+    def remote_scp_v2(self, cmd, passwd, timeout=300):
+        #cmd = 'scp %s %s:%s' % (src_file, dst_ip, dst_file)
+        ssh = pexpect.spawn(cmd, timeout=timeout)
         try:
-            i = ssh.expect(['password:', 'continue connecting (yes/no)?'], timeout=timeout)
+            i = ssh.expect(['password:', 'continue connecting (yes/no)?', '\n'], timeout=10)
             if i == 0:
                 ssh.sendline(passwd)
+                ssh.sendline(cmd)
+                output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                #Test.test_print(self, info=output)
+                return output
             elif i == 1:
                 ssh.sendline('yes\n')
                 ssh.expect('password: ')
                 ssh.sendline(passwd)
-            output = ssh.read()
-            Test.log_echo_file(self, log_str=output)
-            print output
+                ssh.sendline(cmd)
+                output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                #Test.test_print(self, info=output)
+                return output
+
+            elif i == 2:
+                ssh.sendline(cmd)
+                output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                #Test.test_print(self, info=output)
+                return output
 
         except pexpect.EOF:
-            print "EOF"
+            err_info = 'End of File'
+            Test.test_print(self, info=err_info)
             ssh.close()
-            raise Test.test_error(self, 'End of File')
+            Test.test_error(self, err_info)
 
         except pexpect.TIMEOUT:
-            print "TIMEOUT"
+            err_info = 'Command : %s TIMEOUT ' % (cmd)
+            Test.test_print(self, info=err_info)
             ssh.close()
-            raise Test.test_error(self, 'TIMEOUT')
+            Test.test_error(self, err_info)
 
-def example():
-    pass
+class CREATE_TEST_ID(Test):
+    def __init__(self, case_id):
+        self.case_id = case_id
+        self.id = case_id + time.strftime(":%Y-%m-%d-%H:%M:%S")
+        Test.__init__(self, self.id)
+
+    def get_id(self):
+        info = 'Start to run case : %s' % self.case_id
+        Test.test_print(self, info)
+        Test.test_print(self, '%s\n' % ('*' * 50))
+        return self.id
+

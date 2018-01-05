@@ -9,12 +9,14 @@ from log_utils import StepLog
 from config import GUEST_PASSWD
 import re
 import threading
+from utils import create_test_id
 
 def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, timeout=60):
-    #with threadlock:
     start_time = time.time()
     SRC_HOST_IP = src_ip
     DST_HOST_IP = dst_ip
+    #vnc_server_ip = '10.72.12.37'
+    vnc_server_ip = '10.66.12.246'
     cmd_x86_src = '/usr/libexec/qemu-kvm ' \
         '-name yhong-guest ' \
         '-sandbox off ' \
@@ -76,8 +78,9 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, time
         '-incoming tcp:0:4000 ' \
         '-monitor stdio '
 
-    case_id = 'RHEL7-100039'
-    case_id += time.strftime(":%Y-%m-%d-%H:%M:%S")
+    #case_id = 'RHEL7-10039'
+    #case_id += time.strftime(":%Y-%m-%d-%H:%M:%S")
+    case_id = create_test_id('RHEL7-10039').get_id()
     step_log = StepLog(case_id)
     src_host_session = HostSession(case_id)
     step_log.sub_step_log('Checking host kernel version:')
@@ -100,10 +103,7 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, time
     src_host_session.check_guest_thread()
 
     time.sleep(5)
-    src_host_session.vnc_daemon(ip='10.72.12.37', port=59999, timeout=10)
-    #thread = threading.Thread(target=src_host_session.open_vnc, args=('10.72.12.37', 59999, 10))
-    #thread.daemon = True
-    #thread.start()
+    src_host_session.vnc_daemon(ip=vnc_server_ip, port=59999, timeout=10)
 
     step_log.sub_step_log('Check the status of src guest')
     src_remote_qmp = RemoteQMPMonitor_v2(case_id, SRC_HOST_IP, 3333)
@@ -114,7 +114,7 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, time
     output = src_remote_qmp.qmp_cmd('"query-block"')
     if not re.findall(r'drive_image1', output):
         print 'No found system disk\n'
-        raise src_remote_qmp.test_error('No found system disk')
+        src_remote_qmp.test_error('No found system disk')
 
     step_log.sub_step_log('Connecting to src serial')
     src_serial = RemoteSerialMonitor_v2(case_id, SRC_HOST_IP, 4444)
@@ -149,17 +149,14 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, time
     step_log.sub_step_log('Check the hot plug disk on src guest')
     output = src_remote_qmp.qmp_cmd('"query-block"')
     if not re.findall(r'drive-virtio-blk0', output) or not re.findall(r'drive_r4', output):
-        raise src_remote_qmp.test_error('Hot plug disk failed on src')
+        src_remote_qmp.test_error('Hot plug disk failed on src')
 
     step_log.main_step_log('3. Boot \'-incoming\' guest with disk added in step2 on des host. ')
     cmd = 'ssh root@10.66.10.208 %s' % cmd_x86_dst
     src_host_session.subprocess_cmd_v2(cmd, enable_output=False)
 
     time.sleep(3)
-    src_host_session.vnc_daemon(ip='10.72.12.37', port=58888)
-    #thread = threading.Thread(target=src_host_session.open_vnc, args=('10.72.12.37', 58888, 10))
-    #thread.daemon = True
-    #thread.start()
+    src_host_session.vnc_daemon(ip=vnc_server_ip, port=58888, timeout=10)
 
     dst_remote_qmp = RemoteQMPMonitor_v2(case_id, DST_HOST_IP, 3333)
     dst_remote_qmp.qmp_initial()
@@ -188,7 +185,7 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, time
     step_log.sub_step_log('Check disk on dst guest')
     output = src_remote_qmp.qmp_cmd('"query-block"')
     if not re.findall(r'drive-virtio-blk0', output) or not re.findall(r'drive_r4', output):
-        raise src_remote_qmp.test_error('Hot plug disk failed on dst')
+        src_remote_qmp.test_error('Hot plug disk failed on dst')
 
     dst_guest_session = GuestSession_v2(case_id=case_id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
     step_log.sub_step_log('Check dmesg info on dst guest')

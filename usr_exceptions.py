@@ -1,5 +1,4 @@
 import exceptions
-from vm import Test
 
 class Timeout(Exception):
     def __init__(self, str):
@@ -33,9 +32,4 @@ class Error(Exception):
 
 
 if __name__ == '__main__':
-    try:
-        raise Timeout('it timeout')
-    except Timeout as t:
-        print 'show :', t.error_info
-
-    raise Timeout('aa')
+    pass

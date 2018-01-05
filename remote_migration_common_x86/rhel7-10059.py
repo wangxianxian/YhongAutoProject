@@ -8,10 +8,9 @@ from monitor import RemoteSerialMonitor_v2, RemoteQMPMonitor_v2
 from log_utils import StepLog
 from config import GUEST_PASSWD
 import re
-import threading
-from utils import create_test_id
+from vm import CREATE_TEST_ID
 
-def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, timeout=60):
+def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
     start_time = time.time()
     SRC_HOST_IP = src_ip
     DST_HOST_IP = dst_ip
@@ -71,20 +70,18 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, time
         '-vnc :30 ' \
         '-rtc base=localtime,clock=vm,driftfix=slew ' \
         '-boot order=cdn,once=c,menu=off,strict=off ' \
-        '-monitor stdio ' \
-        '-incoming \"exec: gzip -c -d /home/yhong/yhong-auto-project/STATEFILE.gz\" '
+        '-incoming tcp:0:4000 ' \
+        '-monitor stdio '
 
-    #case_id = 'RHEL7-10022'
-    #case_id += time.strftime(":%Y-%m-%d-%H:%M:%S")
-    #case_id = create_test_id('RHEL7-10022')
-    case_id = create_test_id('RHEL7-10022').get_id()
-    step_log = StepLog(case_id)
-    src_host_session = HostSession(case_id)
+    id = CREATE_TEST_ID('RHEL7-10059').get_id()
+    step_log = StepLog(id)
+    src_host_session = HostSession(id)
+
     step_log.sub_step_log('Checking host kernel version:')
-    src_host_session.check_host_kernel_ver()
+    src_host_session.host_cmd_output('uname -r')
 
     step_log.sub_step_log('Checking the version of qemu:')
-    src_host_session.check_qemu_version()
+    src_host_session.host_cmd_output('/usr/libexec/qemu-kvm -version')
 
     step_log.sub_step_log('Checking yhong guest thread')
     pid = src_host_session.check_guest_thread()
@@ -93,119 +90,98 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', threadlock=None, time
 
     time.sleep(3)
 
-    step_log.main_step_log('1. Boot a guest.')
-    src_host_session.boot_guest_v2(cmd_x86_src)
+    step_log.main_step_log('1. Start source vm')
+    src_host_session.boot_guest_v2(cmd_x86_src, vm_alias='src')
 
     step_log.sub_step_log('Check if guest boot up')
     src_host_session.check_guest_thread()
 
     time.sleep(5)
-    src_host_session.vnc_daemon(ip=vnc_server_ip, port=59999)
+    src_host_session.vnc_daemon(ip=vnc_server_ip, port=59999, timeout=10)
 
     step_log.sub_step_log('Check the status of src guest')
-    src_remote_qmp = RemoteQMPMonitor_v2(case_id, SRC_HOST_IP, 3333)
+    src_remote_qmp = RemoteQMPMonitor_v2(id, SRC_HOST_IP, 3333)
     src_remote_qmp.qmp_initial()
-    src_remote_qmp.qmp_cmd('"query-status"')
+    src_remote_qmp.qmp_cmd_output('{"execute":"query-status"}')
 
     step_log.sub_step_log('Connecting to src serial')
-    src_serial = RemoteSerialMonitor_v2(case_id, SRC_HOST_IP, 4444)
+    src_serial = RemoteSerialMonitor_v2(id, SRC_HOST_IP, 4444)
     src_serial.serial_login(prompt_login=True)
 
     SRC_GUEST_IP = src_serial.serial_get_ip()
 
-    print 'src guest ip :' ,SRC_GUEST_IP
-    guest_session = GuestSession_v2(case_id=case_id, ip=SRC_GUEST_IP, passwd=GUEST_PASSWD)
+    src_guest_session = GuestSession_v2(case_id=id, ip=SRC_GUEST_IP, passwd=GUEST_PASSWD)
     step_log.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'
-    output = guest_session.guest_cmd(cmd)
+    output = src_guest_session.guest_cmd_output(cmd)
     if re.findall(r'Call Trace:', output):
-        guest_session.test_error('Guest hit call trace')
+        src_guest_session.test_error('Guest hit call trace')
 
-    step_log.main_step_log('2. Save VM state into a compressed file in host')
-    src_remote_qmp.qmp_cmd('"stop"')
-    src_remote_qmp.qmp_cmd('"query-status"')
-    src_remote_qmp.qmp_cmd('"migrate_set_speed", "arguments": { "value": 104857600 }')
-    src_remote_qmp.qmp_cmd('"migrate","arguments":{"uri": "exec:gzip -c > /home/yhong/yhong-auto-project/STATEFILE.gz"}')
+    step_log.main_step_log('2. Create a file in host')
+    cmd = 'dd if=/dev/urandom of=/tmp/file_host bs=1M count=100 oflag=direct'
+    src_host_session.host_cmd_output(cmd, timeout=300)
 
-    time.sleep(3)
+    step_log.sub_step_log('Check md5sum on src host')
+    file_src_host_md5 = src_host_session.host_cmd_output('md5sum /tmp/file_host')
+
+    step_log.main_step_log('3. Start des vm in migration-listen mode: "-incoming tcp:0:****"')
+    src_host_session.boot_remote_guest(ip='10.66.10.208', cmd=cmd_x86_dst, vm_alias='dst')
+
+    dst_remote_qmp = RemoteQMPMonitor_v2(id, DST_HOST_IP, 3333)
+    dst_remote_qmp.qmp_initial()
+    dst_remote_qmp.qmp_cmd_output('{"execute":"query-status"}')
+
+    src_host_session.vnc_daemon(ip=vnc_server_ip, port=58888, timeout=10)
+
+    step_log.main_step_log('4. Start migration')
+    cmd = '{"execute":"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }}'
+    src_remote_qmp.qmp_cmd_output(cmd)
 
     step_log.sub_step_log('Check the status of migration')
-    cmd = '"query-migrate"'
+    cmd = '{"execute":"query-migrate"}'
     while True:
-        output = src_remote_qmp.qmp_cmd(cmd)
+        output = src_remote_qmp.qmp_cmd_output(cmd)
         if re.findall(r'"remaining": 0', output):
             break
-        time.sleep(3)
+        if re.findall(r'"status": "failed"', output):
+            src_remote_qmp.test_error('migration failed')
+        time.sleep(5)
 
-    time.sleep(2)
-    src_remote_qmp.qmp_cmd('"quit"')
-
-    time.sleep(2)
-
-    step_log.main_step_log('3. Load the file in dest host(src host).')
-    src_host_session.boot_guest_v2(cmd_x86_dst)
-
-    step_log.sub_step_log('Check if guest boot up')
-    src_host_session.check_guest_thread()
-
-    time.sleep(3)
-
-    src_host_session.vnc_daemon(ip=vnc_server_ip, port=59999)
-
-    step_log.sub_step_log('3.1 Login dst guest')
-    dst_remote_qmp = RemoteQMPMonitor_v2(case_id, SRC_HOST_IP, 3333)
-    dst_remote_qmp.qmp_initial()
-    while True:
-        output = dst_remote_qmp.qmp_cmd('"query-status"')
-        if re.findall(r'"paused"', output):
-            break
-        time.sleep(3)
-
-    dst_remote_qmp.qmp_cmd('"cont"')
-    dst_remote_qmp.qmp_cmd('"query-status"')
-
-    dst_serial = RemoteSerialMonitor_v2(case_id, SRC_HOST_IP, 4444)
+    step_log.sub_step_log('Login dst guest')
+    dst_serial = RemoteSerialMonitor_v2(id, '10.66.10.208', 4444)
     dst_serial.serial_login()
 
     DST_GUEST_IP = dst_serial.serial_get_ip()
 
-    print 'dst guest ip :', DST_GUEST_IP
-    guest_session = GuestSession_v2(case_id=case_id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
+    dst_guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
 
-    step_log.main_step_log('4. Check if guest works well.')
+    step_log.main_step_log('5. Transfer file from host to guest')
+    src_host_session.host_cmd_scp(dst_ip=SRC_GUEST_IP, passwd=GUEST_PASSWD,
+                                src_file='/tmp/file_host', dst_file='/tmp/file_guest', timeout=300)
+    step_log.sub_step_log('Check md5sum on dst guest')
+    file_dst_guest_md5 = dst_guest_session.guest_cmd_output('md5sum /tmp/file_guest')
 
-    step_log.sub_step_log('4.1 Guest mouse and keyboard.')
-    pass
+    if file_dst_guest_md5.split(' ')[0] != file_src_host_md5.split(' ')[0]:
+        step_log.sub_step_log('Quit src guest')
+        src_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
+        step_log.sub_step_log('Quit dst guest')
+        dst_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
+        src_host_session.test_error('md5sum value error!!')
 
-    step_log.sub_step_log('4.2. Ping external host / copy file between guest and host')
-    external_host_ip = '10.66.10.208'
-    cmd_ping = 'ping %s -c 10' % external_host_ip
-    output = guest_session.guest_cmd(cmd_ping)
-    if re.findall(r'100% packet loss', output):
-        guest_session.test_error('Ping failed')
+    step_log.main_step_log('6. Ping-pong migrate until file transfer finished')
 
-    step_log.sub_step_log('4.3 dd a file inside guest.')
-    cmd_dd = 'dd if=/dev/zero of=/tmp/dd.io bs=512b count=2000 oflag=direct'
-    output = guest_session.guest_cmd(cmd_dd, timeout=60)
-    if not output:
-        guest_session.test_error('dd failed')
+    step_log.main_step_log('7. Transfer file from guest to host')
 
-    step_log.sub_step_log('check dmesg info')
-    cmd = 'dmesg'
-    output = guest_session.guest_cmd(cmd)
-    if re.findall(r'Call Trace:', output):
-        guest_session.test_error('Guest hit call trace')
+    step_log.main_step_log('9. Check md5sum after file transfer')
 
-    step_log.sub_step_log('4.4. Reboot and then shutdown guest.')
-    dst_serial.serial_cmd('reboot')
 
-    dst_serial.serial_login(prompt_login=True)
-
-    dst_serial.serial_cmd('shutdown -h now')
+    step_log.sub_step_log('Quit src guest')
+    src_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
+    step_log.sub_step_log('Quit dst guest')
+    dst_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
 
     src_host_session.test_pass()
     src_host_session.total_test_time(start_time=start_time)
 
 if __name__ == '__main__':
     run_case()
-
