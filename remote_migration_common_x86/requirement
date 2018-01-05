@@ -9,16 +9,16 @@ I.Requirement
 
 II.Case
 (1)RHEL7-10019 - [migration] Ping-pong live migratioin until guest kdump completes (RHEL only)
-(2)RHEL7-10022 - [migration] Migrate guest via a compressed file ---
+(2)RHEL7-10022 - [migration] Migrate guest via a compressed file ===> done
 (3)RHEL7-10026 - [migration] Do live migrate during vm reboot
 (4)RHEL7-10030 - [migration] Live migration with USB xhci
 (5)RHEL7-10031 - [migration] Live migration support in virtio-blk-data-plane
-(6)RHEL7-10039 - [migration] Do migration after hot plug vdisk ---
+(6)RHEL7-10039 - [migration] Do migration after hot plug vdisk ===> done
 (7)RHEL7-10041 - [migration] Test migration with non-migratable device
 (8)RHEL7-10048 - [migration] Migrate guest with vcpu overcommit
 (9)RHEL7-10038 - [migration] Change cdrom image when guest running and then do migration
 (10)RHEL7-10052 - [migration] Measure the  migration speed(max-bandwidth)
-(11)RHEL7-10059 - [migration] Ping-pong migration during file transfer
+(11)RHEL7-10059 - [migration] Ping-pong migration during file transfer ===> doing
 (12)RHEL7-10065 - [migration] Migrate guest to readonly location
 (13)RHEL7-10069 - [migration] Trigger ENOSPC during migration
 (14)RHEL7-10073 - [migration] Migrate guest during VM installation - scenario1 - checking media
