@@ -12,7 +12,7 @@ II.Case
 (2)RHEL7-10022 - [migration] Migrate guest via a compressed file ===> done
 (3)RHEL7-10026 - [migration] Do live migrate during vm reboot
 (4)RHEL7-10030 - [migration] Live migration with USB xhci
-(5)RHEL7-10031 - [migration] Live migration support in virtio-blk-data-plane
+(5)RHEL7-10031 - [migration] Live migration support in virtio-blk-data-plane ===> doing
 (6)RHEL7-10039 - [migration] Do migration after hot plug vdisk ===> done
 (7)RHEL7-10041 - [migration] Test migration with non-migratable device
 (8)RHEL7-10048 - [migration] Migrate guest with vcpu overcommit
