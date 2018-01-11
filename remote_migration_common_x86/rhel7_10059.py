@@ -9,6 +9,13 @@ from log_utils import StepLog
 from config import GUEST_PASSWD
 import re
 from vm import CREATE_TEST_ID
+import threading
+import Queue
+
+def scp_host2guest(session, queue_data, guest_ip, passwd, timeout):
+    session.host_cmd_scp(dst_ip=guest_ip, passwd=passwd,
+                                src_file='/tmp/file_host', dst_file='/tmp/file_guest', timeout=300)
+    queue_data.put('done')
 
 def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
     start_time = time.time()
@@ -42,8 +49,9 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
         '-vnc :30 ' \
         '-rtc base=localtime,clock=vm,driftfix=slew ' \
         '-boot order=cdn,once=c,menu=off,strict=off ' \
-        '-monitor stdio'
+        '-monitor stdio '
 
+    """
     cmd_x86_dst = '/usr/libexec/qemu-kvm ' \
         '-name yhong-guest ' \
         '-sandbox off ' \
@@ -72,6 +80,9 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
         '-boot order=cdn,once=c,menu=off,strict=off ' \
         '-incoming tcp:0:4000 ' \
         '-monitor stdio '
+    """
+
+    cmd_x86_dst = cmd_x86_src + '-incoming tcp:0:4000 '
 
     id = CREATE_TEST_ID('RHEL7-10059').get_id()
     step_log = StepLog(id)
@@ -118,11 +129,27 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
         src_guest_session.test_error('Guest hit call trace')
 
     step_log.main_step_log('2. Create a file in host')
-    cmd = 'dd if=/dev/urandom of=/tmp/file_host bs=1M count=100 oflag=direct'
+    cmd = 'dd if=/dev/urandom of=/tmp/file_host bs=1M count=1000 oflag=direct'
     src_host_session.host_cmd_output(cmd, timeout=300)
 
     step_log.sub_step_log('Check md5sum on src host')
     file_src_host_md5 = src_host_session.host_cmd_output('md5sum /tmp/file_host')
+
+    """
+    step_log.main_step_log('4. Start migration')
+    cmd = '{"execute":"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }}'
+    src_remote_qmp.qmp_cmd_output(cmd)
+
+    step_log.sub_step_log('Check the status of migration')
+    cmd = '{"execute":"query-migrate"}'
+    while True:
+        output = src_remote_qmp.qmp_cmd_output(cmd)
+        if re.findall(r'"remaining": 0', output):
+            break
+        if re.findall(r'"status": "failed"', output):
+            src_remote_qmp.test_error('migration failed')
+        time.sleep(5)
+    """
 
     step_log.main_step_log('3. Start des vm in migration-listen mode: "-incoming tcp:0:****"')
     src_host_session.boot_remote_guest(ip='10.66.10.208', cmd=cmd_x86_dst, vm_alias='dst')
@@ -133,13 +160,24 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
 
     src_host_session.vnc_daemon(ip=vnc_server_ip, port=58888, timeout=10)
 
-    step_log.main_step_log('4. Start migration')
+
+    step_log.main_step_log('4. Transfer file from host to guest')
+    queue_data = Queue.Queue()
+    thread = threading.Thread(target=scp_host2guest, args=(src_host_session, queue_data, SRC_GUEST_IP,
+                                                    GUEST_PASSWD, 600,))
+    thread.name = 'scp_thread'
+    thread.daemon = True
+    thread.start()
+
+    step_log.main_step_log('5. Start migration')
     cmd = '{"execute":"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }}'
     src_remote_qmp.qmp_cmd_output(cmd)
 
     step_log.sub_step_log('Check the status of migration')
     cmd = '{"execute":"query-migrate"}'
     while True:
+        if queue_data.get() == 'done':
+            print '----->scp done'
         output = src_remote_qmp.qmp_cmd_output(cmd)
         if re.findall(r'"remaining": 0', output):
             break
@@ -154,23 +192,13 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
     DST_GUEST_IP = dst_serial.serial_get_ip()
 
     dst_guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
-
-    step_log.main_step_log('5. Transfer file from host to guest')
-    src_host_session.host_cmd_scp(dst_ip=SRC_GUEST_IP, passwd=GUEST_PASSWD,
-                                src_file='/tmp/file_host', dst_file='/tmp/file_guest', timeout=300)
-    step_log.sub_step_log('Check md5sum on dst guest')
-    file_dst_guest_md5 = dst_guest_session.guest_cmd_output('md5sum /tmp/file_guest')
-
-    if file_dst_guest_md5.split(' ')[0] != file_src_host_md5.split(' ')[0]:
-        step_log.sub_step_log('Quit src guest')
-        src_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
-        step_log.sub_step_log('Quit dst guest')
-        dst_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
-        src_host_session.test_error('md5sum value error!!')
+    dst_guest_session.guest_cmd_output('dmesg')
 
     step_log.main_step_log('6. Ping-pong migrate until file transfer finished')
 
+
     step_log.main_step_log('7. Transfer file from guest to host')
+
 
     step_log.main_step_log('9. Check md5sum after file transfer')
 

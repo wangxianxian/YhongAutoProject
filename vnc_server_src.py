@@ -6,6 +6,7 @@ myHost = ''
 myPort_src = 59999
 
 cmd_src = 'vncviewer 10.66.10.122:30'
+#cmd_src = 'vncviewer 10.66.10.20:30'
 src = socket(AF_INET, SOCK_STREAM)
 src.bind((myHost, myPort_src))
 src.listen(5)
