@@ -54,6 +54,10 @@ class Test():
 
     def check_err_info(self, content):
             if re.findall(r'Error', content):
+                # Delete the timestamp of run timeout.e.g:2018-01-13-18
+                if re.findall(r'\d+-\d+-\d+', content):
+                    content_list = re.split(r':', content)
+                    content = ':'.join(content_list[-2:])
                 raise usr_exceptions.Error(content)
 
     def test_print(self, info):
@@ -239,7 +243,7 @@ class TestCmd(Test):
 
 
 class CREATE_TEST(Test, TestCmd):
-    def __init__(self, case_id, dst_ip=None, timeout=3600):
+    def __init__(self, case_id, guest_name, dst_ip=None, timeout=1800):
         self.case_id = case_id
         self.id = case_id + time.strftime(":%Y-%m-%d-%H:%M:%S")
         passed = False
@@ -249,7 +253,8 @@ class CREATE_TEST(Test, TestCmd):
         thread.daemon = True
         thread.start()
         Test.__init__(self, self.id)
-        self.clear_env(guest_name='yhong-guest', dst_ip=dst_ip)
+        self.guest_name = guest_name
+        self.clear_env(guest_name=guest_name, dst_ip=dst_ip)
 
 
     def get_id(self):
@@ -262,27 +267,20 @@ class CREATE_TEST(Test, TestCmd):
         pid_list = []
         dst_pid_list = []
         output = ''
-        name = '-name ' + guest_name
         cmd_check_list = []
         cmd_check_list.append('ps -axu | grep %s | grep -v grep' % guest_name)
         if dst_ip:
             cmd_check_list.append('ssh root@%s ps -axu | grep %s | grep -v grep' % (dst_ip, guest_name))
-        #print cmd_check_list
         for cmd_check in cmd_check_list:
             output, _ = TestCmd.subprocess_cmd_v2(self, echo_cmd=False, echo_output=False, cmd=cmd_check)
             if output and not re.findall(r'ssh root', cmd_check):
-                for line in output.splitlines():
-                    if re.findall(name, line):
-                        pid = re.split(r"\s+", line)[1]
-                        pid_list.append(pid)
+                pid = re.split(r"\s+", output)[1]
+                pid_list.append(pid)
                 info =  'Found a %s guest process : pid = %s' % (guest_name, pid_list)
                 TestCmd.test_print(self, info)
             elif output and re.findall(r'ssh root', cmd_check):
-                for line in output.splitlines():
-                    if re.findall(name, line):
-                        #print '==>', line
-                        pid = re.split(r"\s+", line)[1]
-                        dst_pid_list.append(pid)
+                pid = re.split(r"\s+", output)[1]
+                dst_pid_list.append(pid)
                 info = 'Found a %s dst guest process : pid = %s' % (guest_name, dst_pid_list)
                 TestCmd.test_print(self, info)
             elif not output and re.findall(r'ssh root', cmd_check):
@@ -316,7 +314,7 @@ class CREATE_TEST(Test, TestCmd):
     def clear_env(self, guest_name, dst_ip):
         pid_list = []
         dst_pid_list = []
-        Test.test_print(self, '**************************************************')
+        Test.test_print(self, '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         Test.test_print(self, '======= Checking host kernel version: =======')
         self.host_cmd_output('uname -r')
 
@@ -333,7 +331,7 @@ class CREATE_TEST(Test, TestCmd):
             for pid in dst_pid_list:
                self.kill_guest_process(pid, dst_ip)
                time.sleep(3)
-        Test.test_print(self, '**************************************************')
+        Test.test_print(self, '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
     def main_step_log(self, log):
         log_tag = '='
