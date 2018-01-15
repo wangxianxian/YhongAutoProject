@@ -14,8 +14,8 @@ cmd_x86 = \
 '-device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
 '-netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown ' \
 '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
-'-m 4G ' \
-'-smp 4 ' \
+'-m 2G ' \
+'-smp 2 ' \
 '-cpu SandyBridge ' \
 '-device usb-tablet,id=usb-tablet1,bus=usb1.0,port=2 ' \
 '-device usb-kbd,id=usb-kbd1,bus=usb1.0,port=3 ' \

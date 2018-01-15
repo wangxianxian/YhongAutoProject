@@ -1,14 +1,14 @@
-from config import GUEST_NAME
 import re
 import os
 import time
-from vm import TestCmd
+from vm import TestCmd, CREATE_TEST
 import threading
 import select
 import subprocess
+import utils
 
 #========================Class Host_Session=====================================#
-class HostSession(TestCmd):
+class HostSession(TestCmd, CREATE_TEST):
     def __init__(self, case_id):
         TestCmd.__init__(self, case_id=case_id)
 
@@ -33,12 +33,19 @@ class HostSession(TestCmd):
         subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    def host_cmd_scp(self, dst_ip, passwd, src_file, dst_file, timeout=300):
-        cmd = 'scp %s %s:%s' % (src_file, dst_ip, dst_file)
+    def host_cmd_scp(self, passwd, src_file, dst_file, src_ip=None, dst_ip=None, timeout=300):
+        cmd = ''
+        output = ''
+        if dst_ip:
+            cmd = 'scp %s %s:%s' % (src_file, dst_ip, dst_file)
+        if src_ip:
+            cmd = 'scp %s:%s %s' % (src_ip, src_file, dst_file)
         TestCmd.test_print(self, cmd)
         output = TestCmd.remote_scp_v2(self, cmd=cmd, passwd=passwd, timeout=timeout)
         # Here need to remove command echo and blank space again
         output = TestCmd.remove_cmd_echo_blank_space(self, output=output, cmd=cmd)
+        if re.findall(r'No such file or directory', output):
+            TestCmd.test_error(self, output)
         TestCmd.test_print(self, output)
 
     def check_guest_thread(self, guest_name):
@@ -61,26 +68,6 @@ class HostSession(TestCmd):
         cmd = 'kill -9 %s' % pid
         self.host_cmd_output(cmd=cmd)
 
-    def creat_images_files(self):
-        src_file = os.getcwd()
-        image_file = src_file + '/images/'
-        try:
-            os.mkdir(image_file)
-            return image_file
-        except OSError:
-            print 'The directory already exists'
-            return None
-
-    def creat_isos_files(self):
-        src_file = os.getcwd()
-        isos_file = src_file + '/isos/'
-        try:
-            os.mkdir(isos_file)
-            return isos_file
-        except OSError:
-            print 'The directory already exists'
-            return None
-
     def open_vnc_display(self, host_ip, vnc_host_ip, dst_passwd, port):
         vnc_cmd = 'vncviewer %s:%s AutoSelect=0' % (host_ip, port)
         TestCmd.subprocess_cmd_v2(self, vnc_cmd)
@@ -94,8 +81,6 @@ class HostSession(TestCmd):
         TestCmd.subprocess_cmd_v2(self, cmd=cmd)
 
     def check_qemu_fd_stdout(self, fd, vm_id=None):
-        #if os.fstat(fd):
-        #while True:
         while select.select([fd], [], [])[0]:
             qemu_output = os.read(fd, 8192)
             if len(qemu_output) != 0:
@@ -115,29 +100,28 @@ class HostSession(TestCmd):
         TestCmd.test_print(self, info=log_info)
 
     def get_guest_pid(self, cmd, dst_ip=None):
-        pid = ''
+        pid_list = []
         dst_pid = ''
-        name = 'yhong-guest'
         cmd_check_list = []
+        guest_name = utils.get_guest_name(cmd=cmd)
+        print '>>>>>Guest name :', guest_name
         if dst_ip:
-            cmd_check = 'ssh root@%s ps -axu | grep "%s" | grep -v grep' % (dst_ip, name)
+            cmd_check = 'ssh root@%s ps -axu | grep %s | grep -v grep' % \
+                        (dst_ip, guest_name)
             cmd_check_list.append(cmd_check)
-        cmd_check = 'ps -axu| grep "%s" | grep -v grep' % name
+        cmd_check = 'ps -axu| grep %s | grep -v grep' % guest_name
         cmd_check_list.append(cmd_check)
         for cmd_check in cmd_check_list:
             output, _ = TestCmd.subprocess_cmd_v2(self, echo_cmd=False, echo_output=False, cmd=cmd_check)
             output = TestCmd.remove_cmd_echo_blank_space(self, output=output, cmd=cmd)
             if output and not re.findall(r'ssh root', cmd_check):
-                for line in output.splitlines():
-                    if re.findall(name, line):
-                        pid = re.split(r"\s+", line)[1]
-                info =  'Guest PID : %s' % (pid)
+                pid = re.split(r"\s+", output)[1]
+                pid_list.append(pid)
+                info =  'Guest PID : %s' % (pid_list[-1])
                 TestCmd.test_print(self, info)
                 return pid
             elif output and re.findall(r'ssh root', cmd_check):
-                for line in output.splitlines():
-                    if re.findall(name, line):
-                        dst_pid = re.split(r"\s+", line)[1]
+                dst_pid = re.split(r"\s+", output)[1]
                 info =  'DST Guest PID : %s' % (dst_pid)
                 TestCmd.test_print(self, info)
                 return dst_pid
@@ -168,8 +152,24 @@ class HostSession(TestCmd):
             thread.daemon = True
             thread.start()
         time.sleep(3)
-        pid = self.get_guest_pid(cmd, dst_ip=ip)
+        dst_pid = self.get_guest_pid(cmd, dst_ip=ip)
+
+    def check_guest_alive(self, guest_pid):
+        pass
+
+    def backup_image(self, imagefile):
+        pass
+
+    def recover_image(self, imagebakfile):
+        pass
 
 if __name__ == '__main__':
-
+    cmd = '/usr/libexec/qemu-kvm   -name yhong-guest     -sandbox off     -machine pc -nodefaults -vga std -device virtio-serial-pci,id=virtio_serial_pci0,bus=pci.0,addr=03 -chardev socket,id=console0,path=/var/tmp/serial-yhong,server,nowait -device virtserialport,chardev=console0,name=console0,id=console0,bus=virtio_serial_pci0.0 -device nec-usb-xhci,id=usb1,bus=pci.0,addr=11 -device virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=04 -drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,werror=stop,rerror=stop,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2 -device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 -netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown -device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 -m 4G -smp 4 -cpu SandyBridge -device usb-tablet,id=usb-tablet1,bus=usb1.0,port=2 -device usb-kbd,id=usb-kbd1,bus=usb1.0,port=3 -device usb-mouse,id=usb-mouse1,bus=usb1.0,port=4 -qmp tcp:0:3333,server,nowait -serial tcp:0:4444,server,nowait -vnc :30 -rtc base=localtime,clock=vm,driftfix=slew -boot order=cdn,once=c,menu=off,strict=off -monitor stdio'
+    lines = re.split(r'\s-', cmd)
+    for line in lines:
+        if re.findall(r'name', line):
+            print line
+            print 'found:', line.split(r' ')[1]
+            #break
+        print  '-',line
     pass

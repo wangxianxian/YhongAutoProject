@@ -16,7 +16,7 @@ def run_case(src_ip='0', dst_ip=None, timeout=60):
     HOST_IP = src_ip
     vnc_server_ip = '10.66.12.246'
 
-    test = CREATE_TEST('rhel7_exam', timeout=3600)
+    test = CREATE_TEST(case_id='rhel7_exam', guest_name='yhong-guest', timeout=300)
     id = test.get_id()
 
     host_session = HostSession(id)
@@ -47,6 +47,8 @@ def run_case(src_ip='0', dst_ip=None, timeout=60):
     test.sub_step_log('Check mem info ')
     cmd = 'free -h'
     guest_session.guest_cmd_output(cmd, timeout=60)
+
+    #guest_session.guest_cmd_output('dmesg', timeout=60)
 
     test.sub_step_log('Quit guest')
     remote_qmp.qmp_cmd_output('{"execute":"quit"}')

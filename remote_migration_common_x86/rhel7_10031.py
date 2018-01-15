@@ -5,21 +5,22 @@ import time
 from host_utils import HostSession
 from guest_utils import GuestSession_v2
 from monitor import RemoteSerialMonitor_v2, RemoteQMPMonitor_v2
-from log_utils import StepLog
 from config import GUEST_PASSWD
-from migration_config import cmd_x86
+from migration_config import cmd_x86, GUEST_NAME
 import re
 from vm import CREATE_TEST
 import threading
+import Queue
+from migration_utils import ping_pong_migration
 
-def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
+def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
     start_time = time.time()
     SRC_HOST_IP = src_ip
     DST_HOST_IP = dst_ip
     #vnc_server_ip = '10.72.12.37'
     vnc_server_ip = '10.66.65.161'
 
-    test = CREATE_TEST('rhel7_10031', dst_ip=DST_HOST_IP)
+    test = CREATE_TEST(case_id='rhel7_10031', guest_name=GUEST_NAME, dst_ip=DST_HOST_IP, timeout=1800)
     id = test.get_id()
     src_host_session = HostSession(id)
 
@@ -29,14 +30,13 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
         src_host_session.test_error('Create image failed!')
 
     cmd_x86_src = cmd_x86 + \
-                  '-device virtio-scsi-pci,id=virtio_scsi_pci1,bus=pci.0,addr=a ' \
-                  '-drive id=drive_data0,if=none,cache=none,format=qcow2,snapshot=on,file=/home/yhong/yhong-auto-project/data-disk0.qcow2 ' \
-                  '-device scsi-hd,id=data0,drive=drive_data0,bus=virtio_scsi_pci1.0,channel=0,scsi-id=0,lun=0 '
+    '-object iothread,id=iothread0 ' \
+    '-device virtio-scsi-pci,id=virtio_scsi_pci1,bus=pci.0,addr=a,iothread=iothread0 ' \
+    '-drive id=drive_data0,if=none,cache=none,format=qcow2,snapshot=on,file=/home/yhong/yhong-auto-project/data-disk0.qcow2 ' \
+    '-device scsi-hd,id=data0,drive=drive_data0,bus=virtio_scsi_pci1.0,channel=0,scsi-id=0,lun=0 '
 
     test.main_step_log('1. Boot the guest on source host with data-plane and \"werror=stop,rerror=stop\"')
     src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
-
-    #src_host_session.vnc_daemon(ip=vnc_server_ip, port=59999, timeout=10)
 
     src_remote_qmp = RemoteQMPMonitor_v2(id, SRC_HOST_IP, 3333)
 
@@ -58,8 +58,6 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
 
     dst_remote_qmp = RemoteQMPMonitor_v2(id, DST_HOST_IP, 3333)
 
-    #src_host_session.vnc_daemon(ip=vnc_server_ip, port=58888, timeout=10)
-
     test.main_step_log('3. Log in to the guest and launch processe that access the disk which is using data-plane')
     sys_dev, output = src_guest_session.guest_system_dev()
     fio_dev = ''
@@ -74,24 +72,20 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
     test.sub_step_log('run fio with data disk')
     output = src_guest_session.guest_cmd_output('fio -v')
     if re.findall(r'command not found', output):
-        #src_guest_session.guest_cmd_output('yum install -y libaio*', timeout=300)
         src_guest_session.guest_cmd_output('cd /home; git clone git://git.kernel.dk/fio.git')
         src_guest_session.guest_cmd_output('cd /home/fio; ./configure; make; make install')
         output = src_guest_session.guest_cmd_output('fio -v')
         if re.findall(r'command not found', output) or not output:
             src_guest_session.test_error('Install fio failed')
-        """
-        src_guest_session.guest_cmd_output('yum install -y libaio*', timeout=300)
-        src_guest_session.guest_cmd_output('yum install -y fio', timeout=300)
-        output = src_guest_session.guest_cmd_output('fio -v')
-        if not re.findall(r'command not found', output):
-            src_guest_session.test_error('Install fio failed')
-        """
-    cmd = 'fio --filename=%s --direct=1 --rw=randrw --bs=512 --runtime=120 --name=test --iodepth=1 --ioengine=libaio' % fio_dev
-    thread = threading.Thread(target=src_guest_session.guest_cmd_output, args=(cmd, True, True, 600,))
+
+    cmd = 'fio --filename=%s --direct=1 --rw=randrw --bs=512 --runtime=600 --name=test --iodepth=1 --ioengine=libaio' % fio_dev
+    thread = threading.Thread(target=src_guest_session.guest_cmd_output, args=(cmd, True, True, 1200,))
     thread.name = 'fio'
     thread.daemon = True
     thread.start()
+
+    time.sleep(1)
+    src_guest_session.guest_cmd_output('pgrep -x fio')
 
     test.main_step_log('4. Migrate to the destination')
     cmd = '{"execute":"migrate", "arguments": { "uri": "tcp:10.66.10.208:4000" }}'
@@ -109,10 +103,19 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208', timeout=60):
 
     test.sub_step_log('Login dst guest')
     dst_serial = RemoteSerialMonitor_v2(case_id=id, ip='10.66.10.208', port=4444, logined=True)
-    #dst_serial.serial_login()
 
     DST_GUEST_IP = dst_serial.ip
     dst_guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
+    dst_guest_session.guest_cmd_output('dmesg')
+    if re.findall(r'Call Trace:', output):
+        src_guest_session.test_error('Guest hit call trace')
+
+    test.sub_step_log('checking fio process')
+    output = dst_guest_session.guest_cmd_output('pgrep -x fio')
+    while output :
+        output = dst_guest_session.guest_cmd_output('pgrep -x fio')
+        time.sleep(3)
+
     dst_guest_session.guest_cmd_output('dmesg')
     if re.findall(r'Call Trace:', output):
         src_guest_session.test_error('Guest hit call trace')

@@ -204,9 +204,10 @@ class RemoteQMPMonitor_v2(RemoteMonitor_v2):
         output = RemoteMonitor_v2.rec_data(self)
         RemoteMonitor_v2.test_print(self, output)
 
-    def qmp_cmd_output(self, cmd, timeout=1800):
+    def qmp_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=1800):
         output =''
-        RemoteMonitor_v2.test_print(self, cmd)
+        if echo_cmd == True:
+            RemoteMonitor_v2.test_print(self, cmd)
         if re.search(r'quit', cmd):
             RemoteMonitor_v2.send_cmd(self, cmd)
         else:
@@ -220,7 +221,8 @@ class RemoteQMPMonitor_v2(RemoteMonitor_v2):
                 err_info = '%s TIMEOUT' % cmd
                 RemoteMonitor_v2.test_error(self, err_info)
             #output = RemoteMonitor_v2.rec_data(self)
-            RemoteMonitor_v2.test_print(self, output)
+            if echo_output == True:
+                RemoteMonitor_v2.test_print(self, output)
             return output
 
 class RemoteSerialMonitor_v2(RemoteMonitor_v2):

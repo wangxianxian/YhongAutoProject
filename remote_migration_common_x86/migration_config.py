@@ -1,3 +1,6 @@
+GUEST_NAME = 'yhong-guest'
+QMP_PORT = 3333
+SERIAL_PORT = 4444
 cmd_x86 = \
 '/usr/libexec/qemu-kvm ' \
 '-name yhong-guest ' \
@@ -10,7 +13,7 @@ cmd_x86 = \
 '-device virtserialport,chardev=console0,name=console0,id=console0,bus=virtio_serial_pci0.0 ' \
 '-device nec-usb-xhci,id=usb1,bus=pci.0,addr=11 ' \
 '-device virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=04 ' \
-'-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=on,werror=stop,rerror=stop,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2 ' \
+'-drive id=drive_image1,if=none,cache=none,format=qcow2,snapshot=off,werror=stop,rerror=stop,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2 ' \
 '-device scsi-hd,id=image1,drive=drive_image1,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=0,bootindex=0 ' \
 '-netdev tap,vhost=on,id=idlkwV8e,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown ' \
 '-device virtio-net-pci,mac=9a:7b:7c:7d:7e:7f,id=idtlLxAk,vectors=4,netdev=idlkwV8e,bus=pci.0,addr=05 ' \
