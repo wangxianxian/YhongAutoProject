@@ -10,7 +10,7 @@ I.Requirement
 II.Case
 (1)RHEL7-10019 - [migration] Ping-pong live migratioin until guest kdump completes (RHEL only)
 (2)RHEL7-10022 - [migration] Migrate guest via a compressed file ===> done
-(3)RHEL7-10026 - [migration] Do live migrate during vm reboot
+(3)RHEL7-10026 - [migration] Do live migrate during vm reboot ===> doing
 (4)RHEL7-10030 - [migration] Live migration with USB xhci
 (5)RHEL7-10031 - [migration] Live migration support in virtio-blk-data-plane ===> done
 (6)RHEL7-10039 - [migration] Do migration after hot plug vdisk ===> done

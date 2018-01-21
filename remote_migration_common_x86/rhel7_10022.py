@@ -14,7 +14,6 @@ import Queue
 from migration_utils import ping_pong_migration
 
 def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
-    start_time = time.time()
     SRC_HOST_IP = src_ip
     DST_HOST_IP = dst_ip
     #vnc_server_ip = '10.72.12.37'
@@ -27,17 +26,16 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
 
     test.main_step_log('1. Boot a guest.')
     cmd_x86_src = cmd_x86
-    src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+    #src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+    src_host_session.boot_guest_v3(cmd=cmd_x86_src, vm_alias='src')
 
     test.sub_step_log('Check the status of src guest')
     src_remote_qmp = RemoteQMPMonitor_v2(id, SRC_HOST_IP, 3333)
 
     test.sub_step_log('Connecting to src serial')
-    src_serial = RemoteSerialMonitor_v2(id, SRC_HOST_IP, 4444)
+    src_serial = RemoteSerialMonitor_v2(case_id=id, ip=SRC_HOST_IP, port=4444)
 
-    SRC_GUEST_IP = src_serial.ip
-
-    print 'src guest ip :' ,SRC_GUEST_IP
+    SRC_GUEST_IP = src_serial.vm_ip
     guest_session = GuestSession_v2(case_id=id, ip=SRC_GUEST_IP, passwd=GUEST_PASSWD)
     test.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'
@@ -49,7 +47,8 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
     src_remote_qmp.qmp_cmd_output('{"execute":"stop"}')
     src_remote_qmp.qmp_cmd_output('{"execute":"query-status"}')
     src_remote_qmp.qmp_cmd_output('{"execute":"migrate_set_speed", "arguments": { "value": 104857600 }}')
-    src_host_session.host_cmd_output(cmd='rm -rf /home/yhong/yhong-auto-project/STATEFILE.gz')
+    #src_host_session.host_cmd_output(cmd='rm -rf /home/yhong/yhong-auto-project/STATEFILE.gz')
+    src_host_session.host_cmd(cmd='rm -rf /home/yhong/yhong-auto-project/STATEFILE.gz')
     src_remote_qmp.qmp_cmd_output('{"execute":"migrate","arguments":{"uri": "exec:gzip -c > /home/yhong/yhong-auto-project/STATEFILE.gz"}}')
 
     time.sleep(3)
@@ -69,7 +68,8 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
 
     test.main_step_log('3. Load the file in dest host(src host).')
     cmd_x86_dst = cmd_x86 + '-incoming \"exec: gzip -c -d /home/yhong/yhong-auto-project/STATEFILE.gz\" '
-    src_host_session.boot_guest_v2(cmd=cmd_x86_dst, vm_alias='dst')
+    #src_host_session.boot_guest_v2(cmd=cmd_x86_dst, vm_alias='dst')
+    src_host_session.boot_guest_v3(cmd=cmd_x86_dst, vm_alias='dst')
 
     test.sub_step_log('3.1 Login dst guest')
     dst_remote_qmp = RemoteQMPMonitor_v2(id, SRC_HOST_IP, 3333)
@@ -84,7 +84,7 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
 
     dst_serial = RemoteSerialMonitor_v2(case_id=id, ip=SRC_HOST_IP, port=4444, logined=True)
 
-    DST_GUEST_IP = dst_serial.ip
+    DST_GUEST_IP = dst_serial.vm_ip
 
     print 'dst guest ip :', DST_GUEST_IP
     guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
@@ -113,14 +113,12 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
         guest_session.test_error('Guest hit call trace')
 
     test.sub_step_log('4.4. Reboot and then shutdown guest.')
-    dst_serial.serial_cmd_output('reboot')
+    dst_serial.serial_cmd_output(cmd='reboot', recv_timeout=3)
 
-    dst_serial = RemoteSerialMonitor_v2(case_id=id, ip=SRC_HOST_IP, port=4444, logined=True)
-
-    dst_serial.serial_cmd_output('shutdown -h now')
+    dst_serial.serial_login(passwd=GUEST_PASSWD)
+    dst_serial.serial_cmd_output(cmd='shutdown -h now', recv_timeout=3)
 
     src_host_session.test_pass()
-    src_host_session.total_test_time(start_time=start_time)
 
 if __name__ == '__main__':
     run_case()

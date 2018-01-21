@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 case_loop=(
-rhel7_10022
-rhel7_10026
-rhel7_10031
-rhel7_10039
-rhel7_10059
+rhel7_exam
+rhel7_exam
+rhel7_exam
+rhel7_exam
+rhel7_exam
+rhel7_exam
+rhel7_exam
+rhel7_exam
+rhel7_exam
+rhel7_exam
 )
 
 echo "Start to run migration loop..."

@@ -12,7 +12,7 @@ class HostSession(TestCmd, CREATE_TEST):
     def __init__(self, case_id):
         TestCmd.__init__(self, case_id=case_id)
 
-    def host_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=300):
+    def host_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=600):
         output = ''
         if echo_cmd == True:
             TestCmd.test_print(self,cmd)
@@ -23,13 +23,34 @@ class HostSession(TestCmd, CREATE_TEST):
             TestCmd.test_print(self, output)
         return output
 
-    def host_cmd_fd(self, cmd):
+    # Support to deal with the symbol '|' pipe, and execute more faster than host_cmd_output
+    def host_cmd_output_v2(self, cmd, echo_cmd=True, echo_output=True, timeout=600):
+        output = ''
+        endtime = time.time() + timeout
+        #print 'start..',time.time()
+        #print 'end..',endtime
+        if echo_cmd == True:
+            TestCmd.test_print(self, cmd)
         sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        fd = sub.stdout.fileno()
-        return fd
+        while time.time() < endtime:
+            #print 'doing time: ', time.time()
+            output = sub.communicate()[0]
+            if output:
+                break
+        if not output:
+            #print 'timeout :', time.time()
+            err_info = 'CMD : %s TIMEOUT!!' % cmd
+            TestCmd.test_error(self, err_info)
+        # Here need to remove command echo and blank space again
+        output = TestCmd.remove_cmd_echo_blank_space(self, output=output, cmd=cmd)
+        if echo_output == True:
+            TestCmd.test_print(self, output)
+        return output
 
-    def host_cmd(self, cmd):
+    def host_cmd(self, cmd, echo_cmd=True,):
+        if echo_cmd == True:
+            TestCmd.test_print(self, cmd)
         subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -76,12 +97,9 @@ class HostSession(TestCmd, CREATE_TEST):
         sub_guest = TestCmd.subprocess_cmd_v2(self, cmd=cmd, enable_output=False)
         time.sleep(2)
 
-    def create_images(self, image_file, size, format):
-        cmd = 'qemu-img create -f %s %s %s' % (format, image_file, size)
-        TestCmd.subprocess_cmd_v2(self, cmd=cmd)
-
     def check_qemu_fd_stdout(self, fd, vm_id=None):
-        while select.select([fd], [], [])[0]:
+        #while self.get_guest_pid(cmd):
+        while bool(select.select([fd], [], [])[0]):
             qemu_output = os.read(fd, 8192)
             if len(qemu_output) != 0:
                 for line in qemu_output.splitlines():
@@ -90,8 +108,8 @@ class HostSession(TestCmd, CREATE_TEST):
                     else:
                         qemu_info = '%s' % line
                     TestCmd.test_print(self, qemu_info)
-            if not os.fstat(fd):
-                break
+            else:
+                continue
 
     def sub_step_log(self, str):
         log_tag = '-'
@@ -104,7 +122,7 @@ class HostSession(TestCmd, CREATE_TEST):
         dst_pid = ''
         cmd_check_list = []
         guest_name = utils.get_guest_name(cmd=cmd)
-        print '>>>>>Guest name :', guest_name
+        #print '>>>>>Guest name :', guest_name
         if dst_ip:
             cmd_check = 'ssh root@%s ps -axu | grep %s | grep -v grep' % \
                         (dst_ip, guest_name)
@@ -135,12 +153,23 @@ class HostSession(TestCmd, CREATE_TEST):
     def boot_guest_v2(self, cmd, vm_alias=None):
         cmd = cmd.rstrip(' ')
         fd, pid = TestCmd.subprocess_cmd_v2(self, cmd=cmd, enable_output=False)
+        #pid = self.get_guest_pid(cmd)
         if fd:
             thread = threading.Thread(target=self.check_qemu_fd_stdout, args=(fd, vm_alias))
             thread.name = 'boot_guest_v2'
             thread.daemon = True
             thread.start()
         time.sleep(3)
+        pid = self.get_guest_pid(cmd)
+
+    # fix the "while select.select([fd], [], [])[0]: error: (9, 'Bad file descriptor')" with thread .
+    def boot_guest_v3(self, cmd, vm_alias=None):
+        cmd = cmd.rstrip(' ')
+        stdout = ''
+        if vm_alias:
+            TestCmd.subprocess_cmd_v3(self, cmd=cmd, vm_alias=vm_alias)
+        else:
+            TestCmd.subprocess_cmd_v3(self, cmd=cmd)
         pid = self.get_guest_pid(cmd)
 
     def boot_remote_guest(self, ip, cmd, vm_alias=None):
@@ -154,10 +183,21 @@ class HostSession(TestCmd, CREATE_TEST):
         time.sleep(3)
         dst_pid = self.get_guest_pid(cmd, dst_ip=ip)
 
+    def boot_remote_guest_v2(self, ip, cmd, vm_alias=None):
+        cmd = 'ssh root@%s %s' % (ip, cmd)
+        if vm_alias:
+            TestCmd.subprocess_cmd_v3(self, cmd=cmd, vm_alias=vm_alias)
+        else:
+            TestCmd.subprocess_cmd_v3(self, cmd=cmd)
+        dst_pid = self.get_guest_pid(cmd, dst_ip=ip)
+
     def check_guest_alive(self, guest_pid):
         pass
 
     def backup_image(self, imagefile):
+        pass
+
+    def image_broken(self, imagefile):
         pass
 
     def recover_image(self, imagebakfile):
