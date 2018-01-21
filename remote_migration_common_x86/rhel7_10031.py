@@ -10,11 +10,8 @@ from migration_config import cmd_x86, GUEST_NAME
 import re
 from vm import CREATE_TEST
 import threading
-import Queue
-from migration_utils import ping_pong_migration
 
 def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
-    start_time = time.time()
     SRC_HOST_IP = src_ip
     DST_HOST_IP = dst_ip
     #vnc_server_ip = '10.72.12.37'
@@ -25,7 +22,8 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
     src_host_session = HostSession(id)
 
     test.sub_step_log('Create a data disk')
-    output = src_host_session.host_cmd_output('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk0.qcow2 10G')
+    #output = src_host_session.host_cmd_output('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk0.qcow2 10G')
+    output = src_host_session.host_cmd_output_v2('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk0.qcow2 10G')
     if re.findall(r'Failed', output):
         src_host_session.test_error('Create image failed!')
 
@@ -36,13 +34,15 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
     '-device scsi-hd,id=data0,drive=drive_data0,bus=virtio_scsi_pci1.0,channel=0,scsi-id=0,lun=0 '
 
     test.main_step_log('1. Boot the guest on source host with data-plane and \"werror=stop,rerror=stop\"')
-    src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+    #src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+    src_host_session.boot_guest_v3(cmd=cmd_x86_src, vm_alias='src')
 
     src_remote_qmp = RemoteQMPMonitor_v2(id, SRC_HOST_IP, 3333)
 
     test.sub_step_log('Connecting to src serial')
     src_serial = RemoteSerialMonitor_v2(id, SRC_HOST_IP, 4444)
-    SRC_GUEST_IP = src_serial.ip
+    SRC_GUEST_IP = src_serial.vm_ip
+    DST_GUEST_IP = SRC_GUEST_IP
 
     src_guest_session = GuestSession_v2(case_id=id, ip=SRC_GUEST_IP, passwd=GUEST_PASSWD)
     test.sub_step_log('Check dmesg info ')
@@ -54,7 +54,8 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
     test.main_step_log('2. Boot the guest on destination host with \'werror=stop,rerror=stop\'')
 
     cmd_x86_dst = cmd_x86_src + '-incoming tcp:0:4000 '
-    src_host_session.boot_remote_guest(ip='10.66.10.208', cmd=cmd_x86_dst, vm_alias='dst')
+    #src_host_session.boot_remote_guest(ip='10.66.10.208', cmd=cmd_x86_dst, vm_alias='dst')
+    src_host_session.boot_remote_guest_v2(ip='10.66.10.208', cmd=cmd_x86_dst, vm_alias='dst')
 
     dst_remote_qmp = RemoteQMPMonitor_v2(id, DST_HOST_IP, 3333)
 
@@ -102,9 +103,7 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
         time.sleep(5)
 
     test.sub_step_log('Login dst guest')
-    dst_serial = RemoteSerialMonitor_v2(case_id=id, ip='10.66.10.208', port=4444, logined=True)
 
-    DST_GUEST_IP = dst_serial.ip
     dst_guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=GUEST_PASSWD)
     dst_guest_session.guest_cmd_output('dmesg')
     if re.findall(r'Call Trace:', output):
@@ -120,13 +119,7 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
     if re.findall(r'Call Trace:', output):
         src_guest_session.test_error('Guest hit call trace')
 
-    test.sub_step_log('Quit src guest')
-    src_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
-    test.sub_step_log('Quit dst guest')
-    dst_remote_qmp.qmp_cmd_output('{"execute":"quit"}')
-
     src_host_session.test_pass()
-    src_host_session.total_test_time(start_time=start_time)
 
 if __name__ == '__main__':
     run_case()

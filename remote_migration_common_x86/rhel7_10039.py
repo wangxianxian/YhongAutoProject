@@ -14,7 +14,6 @@ import Queue
 from migration_utils import ping_pong_migration
 
 def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
-    start_time = time.time()
     SRC_HOST_IP = src_ip
     DST_HOST_IP = dst_ip
     #vnc_server_ip = '10.72.12.37'
@@ -26,7 +25,8 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
 
     test.main_step_log('1. Boot guest with one system disk.')
     cmd_x86_src = cmd_x86
-    src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+    #src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+    src_host_session.boot_guest_v3(cmd=cmd_x86_src, vm_alias='src')
 
     src_remote_qmp = RemoteQMPMonitor_v2(id, SRC_HOST_IP, 3333)
 
@@ -39,7 +39,8 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
     test.sub_step_log('Connecting to src serial')
     src_serial = RemoteSerialMonitor_v2(id, SRC_HOST_IP, 4444, logined=False)
 
-    SRC_GUEST_IP = src_serial.ip
+    SRC_GUEST_IP = src_serial.vm_ip
+    DST_GUEST_IP = SRC_GUEST_IP
 
     print 'src guest ip :' ,SRC_GUEST_IP
     src_guest_session = GuestSession_v2(case_id=id, ip=SRC_GUEST_IP, passwd=GUEST_PASSWD)
@@ -51,8 +52,10 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
 
     test.main_step_log('2. Hot add two disk(should also in shared storage).')
     test.sub_step_log('2.1 Create two image on src host')
-    src_host_session.host_cmd_output('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk0.qcow2 10G')
-    src_host_session.host_cmd_output('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk1.qcow2 20G')
+    #src_host_session.host_cmd_output('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk0.qcow2 10G')
+    #src_host_session.host_cmd_output('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk1.qcow2 20G')
+    src_host_session.host_cmd_output_v2('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk0.qcow2 10G')
+    src_host_session.host_cmd_output_v2('qemu-img create -f qcow2 /home/yhong/yhong-auto-project/data-disk1.qcow2 20G')
 
     test.sub_step_log('2.2 Hot plug the above disks')
     src_remote_qmp.qmp_cmd_output('{"execute":"__com.redhat_drive_add", "arguments":'
@@ -76,7 +79,8 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
                             '-drive file=/home/yhong/yhong-auto-project/data-disk1.qcow2,if=none,id=drive_r4,format=qcow2,cache=none,aio=native,werror=stop,rerror=stop  ' \
                             '-device scsi-hd,drive=drive_r4,id=r4,bus=virtio_scsi_pci0.0,channel=0,scsi-id=0,lun=1 ' \
                             '-incoming tcp:0:4000 '
-    src_host_session.boot_remote_guest(cmd=cmd_x86_dst,ip=DST_HOST_IP, vm_alias='dst')
+    #src_host_session.boot_remote_guest(cmd=cmd_x86_dst,ip=DST_HOST_IP, vm_alias='dst')
+    src_host_session.boot_remote_guest_v2(cmd=cmd_x86_dst, ip=DST_HOST_IP, vm_alias='dst')
 
     dst_remote_qmp = RemoteQMPMonitor_v2(id, DST_HOST_IP, 3333)
 
@@ -93,11 +97,11 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
         time.sleep(3)
 
     test.sub_step_log('Login dst guest')
-    dst_serial = RemoteSerialMonitor_v2(case_id=id, ip=DST_HOST_IP, port=4444, logined=True)
+    #dst_serial = RemoteSerialMonitor_v2(case_id=id, ip=DST_HOST_IP, port=4444, logined=True)
 
-    DST_GUEST_IP = dst_serial.ip
+    #DST_GUEST_IP = dst_serial.ip
 
-    print 'dst guest ip :', DST_GUEST_IP
+    #print 'dst guest ip :', DST_GUEST_IP
 
     test.sub_step_log('Check disk on dst guest')
     output = src_remote_qmp.qmp_cmd_output('{"execute":"query-block"}')
@@ -112,7 +116,6 @@ def run_case(src_ip='10.66.10.122', dst_ip='10.66.10.208'):
         dst_guest_session.test_error('Guest hit call trace')
 
     src_host_session.test_pass()
-    src_host_session.total_test_time(start_time=start_time)
 
 if __name__ == '__main__':
     run_case()

@@ -3,7 +3,7 @@ import os, sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.extend([BASE_DIR])
 import time
-from monitor import RemoteSerialMonitor_v2, RemoteQMPMonitor_v2
+from monitor import RemoteQMPMonitor_v2
 import re
 
 def do_migration(test, cmd, src_remote_qmp, dst_remote_qmp, migrate_port, src_ip=None,
@@ -34,16 +34,17 @@ def do_migration_once():
     pass
 
 def ping_pong_migration(test, cmd, id, src_host_session, src_remote_qmp, dst_remote_qmp, src_ip, src_port,
-                        dst_ip, dst_port, migrate_port, even_times=2, stop_event=None):
+                        dst_ip, dst_port, migrate_port, even_times=30, query_cmd=None):
     output = ''
-    stop_migrate = False
-    stop_migrate = stop_event
     if (even_times % 2) != 0:
         test.test_error('Please set the value of times to even')
 
     for i in range(1, even_times+1):
-        if (even_times % 2) == 0 and stop_migrate == True:
-            break
+        #stop_migrate = stop_event
+        if query_cmd:
+            if (even_times % 2) == 0 and not src_host_session.host_cmd_output(cmd=query_cmd):
+                break
+
         src_output = src_remote_qmp.qmp_cmd_output(cmd='{"execute":"query-status"}', echo_cmd=False, echo_output=False)
         dst_output = dst_remote_qmp.qmp_cmd_output(cmd='{"execute":"query-status"}', echo_cmd=False, echo_output=False)
 
@@ -51,7 +52,8 @@ def ping_pong_migration(test, cmd, id, src_host_session, src_remote_qmp, dst_rem
             test.test_print('========>>>>>>>> %d : Do migration from src to dst ========>>>>>>>> \n' % i)
             test.sub_step_log('start dst with -incoming ')
             cmd_x86_dst = cmd + '-incoming tcp:0:%d ' % migrate_port
-            src_host_session.boot_remote_guest(ip=dst_ip, cmd=cmd_x86_dst, vm_alias='dst')
+            #src_host_session.boot_remote_guest(ip=dst_ip, cmd=cmd_x86_dst, vm_alias='dst')
+            src_host_session.boot_remote_guest_v2(ip=dst_ip, cmd=cmd_x86_dst, vm_alias='dst')
             dst_remote_qmp = RemoteQMPMonitor_v2(id, dst_ip, dst_port)
             do_migration(test, cmd, src_remote_qmp, dst_remote_qmp, src_ip=None,
                         dst_ip=dst_ip, migrate_port=migrate_port)
@@ -61,7 +63,8 @@ def ping_pong_migration(test, cmd, id, src_host_session, src_remote_qmp, dst_rem
             src_remote_qmp.qmp_cmd_output(cmd='{"execute":"quit"}', echo_cmd=False, echo_output=False)
             test.sub_step_log('start src with -incoming ')
             cmd_x86_src = cmd + '-incoming tcp:0:%d ' % migrate_port
-            src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+            #src_host_session.boot_guest_v2(cmd=cmd_x86_src, vm_alias='src')
+            src_host_session.boot_guest_v3(cmd=cmd_x86_src, vm_alias='src')
             src_remote_qmp = RemoteQMPMonitor_v2(id, src_ip, src_port)
             do_migration(test, cmd, src_remote_qmp, dst_remote_qmp, src_ip=src_ip,
                         dst_ip=None, migrate_port=migrate_port)
@@ -71,7 +74,8 @@ def ping_pong_migration(test, cmd, id, src_host_session, src_remote_qmp, dst_rem
             dst_remote_qmp.qmp_cmd_output(cmd='{"execute":"quit"}', echo_cmd=False, echo_output=False)
             test.sub_step_log('start dst with -incoming ')
             cmd_x86_dst = cmd + '-incoming tcp:0:%d ' % migrate_port
-            src_host_session.boot_remote_guest(ip=dst_ip, cmd=cmd_x86_dst, vm_alias='dst')
+            #src_host_session.boot_remote_guest(ip=dst_ip, cmd=cmd_x86_dst, vm_alias='dst')
+            src_host_session.boot_remote_guest_v2(ip=dst_ip, cmd=cmd_x86_dst, vm_alias='dst')
             dst_remote_qmp = RemoteQMPMonitor_v2(id, dst_ip, dst_port)
             do_migration(test, cmd, src_remote_qmp, dst_remote_qmp, src_ip=None,
                         dst_ip=dst_ip, migrate_port=migrate_port)

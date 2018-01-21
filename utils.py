@@ -29,10 +29,13 @@ def creat_isos_files():
         print 'The directory already exists'
         return None
 
+def check_core_dump():
+    pass
+
 if __name__ == '__main__':
     print os.path.abspath(__file__)
     print os.path.dirname(os.path.abspath(__file__))
     print os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     creat_images_files()
     creat_isos_files()
-    pass
+

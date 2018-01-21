@@ -6,11 +6,13 @@ import socket
 import usr_exceptions
 import threading
 import re
+import Queue
 
 class Test():
     def __init__(self, case_id, timeout=3600):
         self.case_id = case_id
         self.pid_list = []
+        self.start_time = time.time()
 
     def log_echo_file(self, log_str):
         pre_path = os.getcwd()
@@ -107,6 +109,7 @@ class Test():
         pass_info = '%s \n' %('*' * 50)
         pass_info += 'Case %s --- Pass \n' % self.case_id.split(':')[0]
         self.test_print(info=pass_info)
+        self.total_test_time(start_time=self.start_time)
 
     def test_timeout_daemon(self, passed, endtime):
         while time.time() < endtime:
@@ -137,11 +140,65 @@ class TestCmd(Test):
         elif (enable_output == False):
             return fd, pid
 
+    def _reader(self, name, stream, outbuf, lock, vm_alias=None):
+        """
+        Thread runner for reading lines of from a subprocess into a buffer.
+
+        :param name: The logical name of the stream (used for logging only).
+        :param stream: The stream to read from. This will typically a pipe
+                       connected to the output stream of a subprocess.
+        :param outbuf: The list to append the read lines to.
+        """
+        lock.acquire()
+        stop_find = False
+        while True:
+            s = stream.readline()
+            if not s:
+                break
+            s = s.decode('utf-8').rstrip()
+            outbuf.append(s)
+            if re.findall(r'QEMU', s) or re.findall(r'qemu-kvm:', s)\
+                    or re.findall(r'(qemu)', s):
+                if stop_find == False:
+                    lock.release()
+                    if re.findall(r'Failed', s) \
+                            or re.findall(r'Address already in use', s)\
+                            or re.findall(r'not found', s):
+                        err_info = 'Failed to boot guest : %s' %s
+                        Test.test_error(self, err_info)
+                    stop_find = True
+            if vm_alias:
+                Test.test_print(self, 'From %s->%s: %s' % (vm_alias, name, s))
+            else:
+                Test.test_print(self, '%s: %s' % (name, s))
+        stream.close()
+
+    # refer to /home/yhong/Github-Pycharm/staf-kvm-devel/workspace/lib/python2.7/site-packages/pip/_vendor/distlib/index.py
+    def subprocess_cmd_v3(self, cmd, echo_cmd=True, vm_alias=None):
+        pid = ''
+        stdout = []
+        self._lock = threading.Lock()
+        if echo_cmd == True:
+            Test.test_print(self, cmd)
+        sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        t1 = threading.Thread(target=self._reader, args=('stdout', sub.stdout, stdout, self._lock, vm_alias))
+        t1.daemon = True
+        t1.name = 'stdout_thread'
+        t1.start()
+        while 1:
+            if self._lock.acquire():
+                break
+            pass
+        self._lock.release()
+        return sub.returncode, stdout
+
     def local_ssh_cmd(self, cmd, timeout=1800):
         ssh = pexpect.spawn(cmd, timeout=timeout)
         try:
             ssh.sendline(cmd)
             output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+            ssh.close()
             return output
 
         except pexpect.EOF:
@@ -174,15 +231,16 @@ class TestCmd(Test):
             output = "\n".join(lines)
         return output
 
-    def remote_ssh_cmd_v2(self, ip, passwd, cmd, timeout=1800):
+    def remote_ssh_cmd_v2(self, ip, passwd, cmd, timeout=300):
         output = ''
         ssh = pexpect.spawn('ssh root@%s %s' % (ip, cmd), timeout=timeout)
         try:
-            i = ssh.expect(['password:', 'continue connecting (yes/no)?'], timeout=60)
+            i = ssh.expect(['password:', 'continue connecting (yes/no)?'])
             if i == 0:
                 ssh.sendline(passwd)
                 ssh.sendline(cmd)
                 output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                ssh.close()
                 return output
             elif i == 1:
                 ssh.sendline('yes\n')
@@ -190,23 +248,28 @@ class TestCmd(Test):
                 ssh.sendline(passwd)
                 ssh.sendline(cmd)
                 output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                ssh.close()
                 return output
             else:
                 ssh.sendline(cmd)
                 output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                ssh.close()
                 return output
 
-        except pexpect.EOF:
-            err_info = 'End of File'
-            Test.test_print(self, info=err_info)
+        #except pexpect.EOF:
+        #    err_info = 'End of File'
+        #    Test.test_print(self, info=err_info)
+        #    ssh.close()
+        #    Test.test_error(self, err_info)
+        except pexpect.TIMEOUT:
+            err_info = 'Command : %s TIMEOUT ' % (cmd)
+            #Test.test_print(self, info=err_info)
             ssh.close()
             Test.test_error(self, err_info)
 
-        except pexpect.TIMEOUT:
-            err_info = 'Command : %s TIMEOUT ' % (cmd)
-            Test.test_print(self, info=err_info)
-            ssh.close()
-            Test.test_error(self, err_info)
+    # Fix command timeout unexpectedly sometimes.
+    def remote_ssh_cmd_v3(self, ip, passwd, cmd, timeout=300):
+        pass
 
     def remote_scp_v2(self, cmd, passwd, timeout=1800):
         ssh = pexpect.spawn(cmd, timeout=timeout)
@@ -216,6 +279,7 @@ class TestCmd(Test):
                 ssh.sendline(passwd)
                 ssh.sendline(cmd)
                 output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                ssh.close()
                 return output
             elif i == 1:
                 ssh.sendline('yes\n')
@@ -223,10 +287,12 @@ class TestCmd(Test):
                 ssh.sendline(passwd)
                 ssh.sendline(cmd)
                 output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                ssh.close()
                 return output
             else:
                 ssh.sendline(cmd)
                 output = self.remove_cmd_echo_blank_space(output=ssh.read(), cmd=cmd)
+                ssh.close()
                 return output
 
         except pexpect.EOF:
@@ -255,7 +321,6 @@ class CREATE_TEST(Test, TestCmd):
         Test.__init__(self, self.id)
         self.guest_name = guest_name
         self.clear_env(guest_name=guest_name, dst_ip=dst_ip)
-
 
     def get_id(self):
         info = 'Start to run case : %s' % self.case_id
@@ -292,7 +357,8 @@ class CREATE_TEST(Test, TestCmd):
 
         return pid_list, dst_pid_list
 
-    def host_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=300):
+    # need to merger to host_utils.py
+    def host_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=600):
         output = ''
         if echo_cmd == True:
             TestCmd.test_print(self,cmd)
@@ -303,23 +369,57 @@ class CREATE_TEST(Test, TestCmd):
             TestCmd.test_print(self, output)
         return output
 
+    # need to merger to host_utils.py !!!
+    def host_cmd(self, cmd, echo_cmd=True):
+        if echo_cmd == True:
+            TestCmd.test_print(self,cmd)
+        subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    # need to merger to host_utils.py !!!
+    def host_cmd_output_v2(self, cmd, echo_cmd=True, echo_output=True, timeout=600):
+        output = ''
+        stdout = []
+        stderr = []
+        endtime = time.time() + timeout
+        if echo_cmd == True:
+            TestCmd.test_print(self, cmd)
+        sub = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        while time.time() < endtime:
+            output = sub.communicate()[0]
+            if output:
+                break
+        if not output:
+            err_info = 'CMD : %s TIMEOUT!!' % cmd
+            TestCmd.test_error(self, err_info)
+        # Here need to remove command echo and blank space again
+        output = TestCmd.remove_cmd_echo_blank_space(self, output=output, cmd=cmd)
+        if echo_output == True:
+            TestCmd.test_print(self, output)
+        return output
+
     def kill_guest_process(self, pid, dst_ip=None):
         if dst_ip:
             cmd = 'ssh root@%s kill -9 %s' %(dst_ip, pid)
-            self.host_cmd_output(cmd=cmd)
+            #self.host_cmd_output(cmd=cmd)
+            self.host_cmd(cmd=cmd)
         else:
             cmd = 'kill -9 %s' % pid
-            self.host_cmd_output(cmd=cmd)
+            #self.host_cmd_output(cmd=cmd)
+            self.host_cmd(cmd=cmd)
 
     def clear_env(self, guest_name, dst_ip):
         pid_list = []
         dst_pid_list = []
         Test.test_print(self, '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         Test.test_print(self, '======= Checking host kernel version: =======')
-        self.host_cmd_output('uname -r')
+        #self.host_cmd_output('uname -r')
+        self.host_cmd_output_v2('uname -r')
 
         Test.test_print(self, '======= Checking the version of qemu: =======')
-        self.host_cmd_output('/usr/libexec/qemu-kvm -version')
+        #self.host_cmd_output('/usr/libexec/qemu-kvm -version')
+        self.host_cmd_output_v2('/usr/libexec/qemu-kvm -version')
 
         Test.test_print(self,'======= Checking guest process existed =======')
         pid_list, dst_pid_list = self.check_guest_process(guest_name, dst_ip)
@@ -346,3 +446,5 @@ class CREATE_TEST(Test, TestCmd):
         log_info = '%s %s %s' % (log_tag * log_tag_rept, str, log_tag * log_tag_rept)
         Test.test_print(self, info=log_info)
 
+if __name__ == '__main__':
+    pass
