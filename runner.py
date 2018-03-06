@@ -1,8 +1,10 @@
-import signal
 import multiprocessing
 import utils_modules
 from usr_exceptions import Error
+import os
+import time
 
+BASE_FILE = os.path.dirname(os.path.abspath(__file__))
 
 class CaseRunner():
     def __init__(self, params):
@@ -31,3 +33,6 @@ class CaseRunner():
         main_proc.start()
         main_proc.name = 'main_run'
         #main_proc.daemon = True
+
+if __name__ == '__main__':
+    pass

@@ -130,8 +130,8 @@ class QMPMonitorFile_v2(MonitorFile_v2):
 class RemoteMonitor_v2(Test):
     CONNECT_TIMEOUT = 60
     DATA_AVAILABLE_TIMEOUT = 0
-    def __init__(self, case_id, ip, port):
-        Test.__init__(self, case_id=case_id)
+    def __init__(self, case_id, params, ip, port):
+        Test.__init__(self, case_id=case_id, params=params)
         self._ip = ip
         self._port = port
         self.address = (ip, port)
@@ -192,11 +192,11 @@ class RemoteMonitor_v2(Test):
         return output
 
 class RemoteQMPMonitor_v2(RemoteMonitor_v2):
-    def __init__(self, case_id, ip, port):
+    def __init__(self, case_id, params, ip, port):
         self._ip = ip
         self._port = port
         self._address = (self._ip, self._port)
-        RemoteMonitor_v2.__init__(self, case_id=case_id, ip=ip, port=port)
+        RemoteMonitor_v2.__init__(self, case_id=case_id, params=params, ip=ip, port=port)
         self.qmp_initial()
 
     def qmp_initial(self):
@@ -233,10 +233,10 @@ class RemoteQMPMonitor_v2(RemoteMonitor_v2):
             return output
 
 class RemoteSerialMonitor_v2(RemoteMonitor_v2):
-    def __init__(self, case_id, ip, port, logined=False):
+    def __init__(self, case_id, params, ip, port, logined=False):
         self._ip = ip
         self._port = port
-        RemoteMonitor_v2.__init__(self, case_id=case_id, ip=ip, port=port)
+        RemoteMonitor_v2.__init__(self, case_id=case_id, ip=ip, port=port, params=params)
         if logined == False:
             self.vm_ip = self.serial_login()
         else:

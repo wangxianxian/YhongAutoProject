@@ -15,6 +15,7 @@ import yaml
 import utils_params
 import utils_modules
 import runner
+import log_utils
 
 BASE_FILE = os.path.dirname(os.path.abspath(__file__))
 
@@ -67,6 +68,10 @@ if __name__ == "__main__":
     requirement_id = sys.argv[1]
 
     params = utils_params.Params(requirement_id)
+
+    log_dir = log_utils.create_log_file(requirement_id)
+
+    print params.get('log_dir', log_dir)
 
     runner = runner.CaseRunner(params)
 

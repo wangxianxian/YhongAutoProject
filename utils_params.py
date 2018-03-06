@@ -3,6 +3,7 @@ BASE_FILE = os.path.dirname(os.path.abspath(__file__))
 import re
 import yaml
 from usr_exceptions import Error
+import log_utils
 
 def find_yaml_file(yaml_id):
     file_path = ''

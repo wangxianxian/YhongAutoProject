@@ -5,10 +5,10 @@ import pexpect
 
 #============================Class Guest_Session_v2=================================================#
 class GuestSession_v2(TestCmd):
-    def __init__(self, ip, passwd, case_id):
+    def __init__(self, ip, passwd, case_id, params):
         self.__ip = ip
         self.__passwd = passwd
-        TestCmd.__init__(self, case_id=case_id)
+        TestCmd.__init__(self, case_id=case_id, params=params)
 
     def exc_cmd_guest(self, ip, passwd, cmd, timeout=300):
         output = TestCmd.remote_ssh_cmd_v2(self, ip=ip, passwd=passwd, cmd=cmd, timeout=timeout)

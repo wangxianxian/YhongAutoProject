@@ -1,7 +1,23 @@
 import os, sys, time
 from vm import Test
 
+BASE_FILE = os.path.dirname(os.path.abspath(__file__))
+
 #=================================================#
+def create_log_file(requirement_id):
+    logs_base_path = os.path.join(BASE_FILE, 'test_logs')
+    #print logs_base_path
+    if not os.path.exists(logs_base_path):
+        os.mkdir(logs_base_path)
+
+    timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
+    log_file = requirement_id + '-' + timestamp
+    log_path = os.path.join(logs_base_path, log_file)
+    #print log_path
+    os.mkdir(log_path)
+    return log_path
+
+
 class StepLog(Test):
     def __init__(self, case_id=None):
         Test.__init__(self, case_id=case_id)

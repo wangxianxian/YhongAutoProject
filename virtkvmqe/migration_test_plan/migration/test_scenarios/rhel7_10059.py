@@ -23,9 +23,9 @@ def run_case(params):
     guest_name = params.get('vm_cmd_base')['name'][0]
     queue = Queue.Queue()
 
-    test = CREATE_TEST(case_id='rhel7_10059', guest_name=guest_name, dst_ip=DST_HOST_IP, timeout=3600)
+    test = CREATE_TEST(case_id='rhel7_10059', params=params, guest_name=guest_name, dst_ip=DST_HOST_IP, timeout=3600)
     id = test.get_id()
-    src_host_session = HostSession(id)
+    src_host_session = HostSession(id, params)
 
     test.main_step_log('1. Start source vm')
     params.vm_base_cmd_update('m', '4096', '2048')
@@ -33,14 +33,14 @@ def run_case(params):
     #src_host_session.boot_guest_v2(cmd_x86_src, vm_alias='src')
     src_host_session.boot_guest_v3(src_qemu_cmd, vm_alias='src')
 
-    src_remote_qmp = RemoteQMPMonitor_v2(id, SRC_HOST_IP, qmp_port)
+    src_remote_qmp = RemoteQMPMonitor_v2(id, params, SRC_HOST_IP, qmp_port)
 
     test.sub_step_log('Connecting to src serial')
-    src_serial = RemoteSerialMonitor_v2(id, SRC_HOST_IP, serail_port)
+    src_serial = RemoteSerialMonitor_v2(id, params, SRC_HOST_IP, serail_port)
     SRC_GUEST_IP = src_serial.vm_ip
     DST_GUEST_IP = SRC_GUEST_IP
 
-    src_guest_session = GuestSession_v2(case_id=id, ip=SRC_GUEST_IP, passwd=guest_passwd)
+    src_guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP, passwd=guest_passwd)
     test.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'
     output = src_guest_session.guest_cmd_output(cmd)
@@ -64,7 +64,7 @@ def run_case(params):
 
     src_host_session.boot_remote_guest_v2(ip=DST_HOST_IP, cmd=dst_qemu_cmd, vm_alias='dst')
 
-    dst_remote_qmp = RemoteQMPMonitor_v2(id, DST_HOST_IP, qmp_port)
+    dst_remote_qmp = RemoteQMPMonitor_v2(id, params, DST_HOST_IP, qmp_port)
 
     test.main_step_log('4. Transfer file from host to guest')
 
@@ -94,7 +94,7 @@ def run_case(params):
 
     test.sub_step_log('Login dst guest')
 
-    dst_guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=guest_passwd)
+    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP, passwd=guest_passwd)
     dst_guest_session.guest_cmd_output(cmd='dmesg')
 
     test.main_step_log('6. Ping-pong migrate until file transfer finished')
@@ -105,7 +105,7 @@ def run_case(params):
 
     test.sub_step_log('Login dst guest after ping-pong migration')
 
-    dst_guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=guest_passwd)
+    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP, passwd=guest_passwd)
     dst_guest_session.guest_cmd_output(cmd='dmesg')
 
     file_src_host_md5 = src_host_session.host_cmd_output_v2(cmd='md5sum /home/file_host')
@@ -142,7 +142,7 @@ def run_case(params):
 
     test.sub_step_log('Login dst guest after ping-pong migration')
 
-    dst_guest_session = GuestSession_v2(case_id=id, ip=DST_GUEST_IP, passwd=guest_passwd)
+    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP, passwd=guest_passwd)
     dst_guest_session.guest_cmd_output(cmd='dmesg')
 
     src_host_session.test_pass()

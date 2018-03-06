@@ -9,8 +9,8 @@ import utils
 
 #========================Class Host_Session=====================================#
 class HostSession(TestCmd, CREATE_TEST):
-    def __init__(self, case_id):
-        TestCmd.__init__(self, case_id=case_id)
+    def __init__(self, case_id, params):
+        TestCmd.__init__(self, case_id=case_id, params=params)
 
     def host_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=600):
         output = ''
