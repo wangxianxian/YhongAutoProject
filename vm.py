@@ -7,6 +7,9 @@ import usr_exceptions
 import threading
 import re
 import Queue
+import logging
+
+BASE_FILE = os.path.dirname(os.path.abspath(__file__))
 
 class Test():
     def __init__(self, case_id, timeout=3600):
@@ -15,7 +18,8 @@ class Test():
         self.start_time = time.time()
 
     def log_echo_file(self, log_str):
-        pre_path = os.getcwd()
+        #pre_path = os.getcwd()
+        pre_path = BASE_FILE
         path = pre_path + '/run_log/'
         if not os.path.exists(path):
             os.mkdir(path)
@@ -62,8 +66,9 @@ class Test():
                     content = ':'.join(content_list[-2:])
                 raise usr_exceptions.Error(content)
 
-    def test_print(self, info):
-        print info
+    def test_print(self, info, verbose=True):
+        if verbose == True:
+            print info
         self.log_echo_file(log_str=info)
 
     def total_test_time(self, start_time):
@@ -426,11 +431,11 @@ class CREATE_TEST(Test, TestCmd):
         if pid_list:
             for pid in pid_list:
                self.kill_guest_process(pid)
-               time.sleep(3)
+               #time.sleep(3)
         if dst_pid_list:
             for pid in dst_pid_list:
                self.kill_guest_process(pid, dst_ip)
-               time.sleep(3)
+               #time.sleep(3)
         Test.test_print(self, '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
     def main_step_log(self, log):
@@ -447,4 +452,7 @@ class CREATE_TEST(Test, TestCmd):
         Test.test_print(self, info=log_info)
 
 if __name__ == '__main__':
+    print os.path.abspath(__file__)
+    print os.path.dirname(os.path.abspath(__file__))
+    print os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     pass

@@ -10,8 +10,8 @@ from config import GUEST_PASSWD
 import yhong_config
 from vm import CREATE_TEST
 
-def run_case(params=None):
-    HOST_IP = src_ip = '0'
+def run_case(src_ip='0', dst_ip=None):
+    HOST_IP = src_ip
     vnc_server_ip = '10.66.12.246'
 
     test = CREATE_TEST(case_id='rhel7_exam', guest_name='yhong-guest', timeout=600)
