@@ -12,21 +12,17 @@ import logging
 BASE_FILE = os.path.dirname(os.path.abspath(__file__))
 
 class Test():
-    def __init__(self, case_id, timeout=3600):
+    def __init__(self, case_id, params, timeout=3600):
         self.case_id = case_id
         self.pid_list = []
         self.start_time = time.time()
+        self.params = params
 
     def log_echo_file(self, log_str):
-        #pre_path = os.getcwd()
-        pre_path = BASE_FILE
-        path = pre_path + '/run_log/'
-        if not os.path.exists(path):
-            os.mkdir(path)
         prefix_file = self.case_id
         if not prefix_file:
             prefix_file = 'Untitled'
-        log_file = path + prefix_file
+        log_file = self.params.get('log_dir') + '/' +prefix_file
         if os.path.exists(log_file):
             run_log = open(log_file, "r")
             if run_log:
@@ -126,8 +122,8 @@ class Test():
             #self.test_error(err_info)
 
 class TestCmd(Test):
-    def __init__(self, case_id):
-        Test.__init__(self, case_id=case_id)
+    def __init__(self, case_id, params):
+        Test.__init__(self, case_id=case_id, params=params)
 
     def subprocess_cmd_v2(self, cmd, echo_cmd=True, echo_output=True, enable_output=True):
         pid = ''
@@ -314,16 +310,17 @@ class TestCmd(Test):
 
 
 class CREATE_TEST(Test, TestCmd):
-    def __init__(self, case_id, guest_name, dst_ip=None, timeout=1800):
+    def __init__(self, case_id, params, guest_name, dst_ip=None, timeout=1800):
         self.case_id = case_id
         self.id = case_id + time.strftime(":%Y-%m-%d-%H:%M:%S")
+        self.params = params
         passed = False
         endtime = time.time() + timeout
         thread = threading.Thread(target=Test.test_timeout_daemon, args=(self, passed, endtime,))
         thread.name = 'TimeoutThread'
         thread.daemon = True
         thread.start()
-        Test.__init__(self, self.id)
+        Test.__init__(self, self.id, self.params)
         self.guest_name = guest_name
         self.clear_env(guest_name=guest_name, dst_ip=dst_ip)
 
