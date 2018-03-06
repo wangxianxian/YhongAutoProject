@@ -1,0 +1,74 @@
+test_matrix:
+ interface:
+  virtio-scsi: 'yes'
+  virtio-blk: 'no'
+ backend:
+  iscsi: 'no'
+  local: 'yes'
+  nfs: 'no'
+
+host_passwd: 'kvmautotest'
+guest_passwd: 'kvmautotest'
+
+# qemu command line
+vm_cmd_base:
+ S:
+  - 'None'
+ name:
+  - '"yhong-guest"'
+ sandbox:
+  - 'off'
+ machine:
+  - 'pserials'
+ nodefaults:
+  - 'None'
+ vga:
+  - 'std'
+ chardev:
+  - 'socket,id=qmp_id_qmpmonitor1,path=/var/tmp/monitor-qmpmonitor1,server,nowait'
+  - 'socket,id=qmp_id_catch_monitor,path=/var/tmp/monitor-catch_monitor,server,nowait'
+ mon:
+  - 'chardev=qmp_id_qmpmonitor1,mode=control'
+  - 'chardev=qmp_id_catch_monitor,mode=control'
+ device:
+  - 'nec-usb-xhci,id=usb1,bus=pci.0,addr=0x3'
+  - 'virtio-scsi-pci,id=virtio_scsi_pci0,bus=pci.0,addr=0x4'
+  - 'scsi-hd,id=image1,drive=drive_image1'
+  - 'virtio-net-pci,mac=9a:8a:8b:8c:8d:8e,id=idfcjBbM,vectors=4,netdev=idyJhsPA,bus=pci.0,addr=0x5'
+  - 'usb-tablet,id=usb-tablet1,bus=usb1.0,port=1'
+ drive:
+  - 'id=drive_image1,if=none,snapshot=on,aio=threads,cache=none,format=qcow2,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2'
+ netdev:
+  - 'tap,id=idyJhsPA,vhost=on'
+ m:
+  - '8192'
+ smp:
+  - '4,maxcpus=4,cores=2,threads=1,sockets=2'
+ vnc:
+  - ':0'
+ rtc:
+  - 'base=utc,clock=host'
+ boot:
+  - 'menu=off,strict=off,order=cdn,once=c'
+ enable-kvm:
+  - 'None'
+ qmp:
+  - 'tcp:0:3333,server,nowait'
+ serial:
+  - 'tcp:0:4444,server,nowait'
+ monitor:
+  - 'stdio'
+ incoming:
+  - ''
+
+test_cases:
+ - 'rhel7_0000'
+ - 'rhel7_11911' #RHEL7-11911 - [virtual block] dd test one disk with different block size - rhel only
+ - 'rhel7_11912' #RHEL7-11912 - [virtual block] do "system_reset" when guest boot for at least 10 times
+ - 'rhel7_11948' #RHEL7-11948 - [virtual block] check the file md5 value steady before and after block_resize
+
+verbose: 'yes'
+
+timeout: '7200'
+
+
