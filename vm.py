@@ -62,8 +62,8 @@ class Test():
                     content = ':'.join(content_list[-2:])
                 raise usr_exceptions.Error(content)
 
-    def test_print(self, info, verbose=True):
-        if verbose == True:
+    def test_print(self, info):
+        if self.params.get('verbose') == 'yes':
             print info
         self.log_echo_file(log_str=info)
 
@@ -173,7 +173,6 @@ class TestCmd(Test):
             else:
                 Test.test_print(self, '%s: %s' % (name, s))
         stream.close()
-
     # refer to /home/yhong/Github-Pycharm/staf-kvm-devel/workspace/lib/python2.7/site-packages/pip/_vendor/distlib/index.py
     def subprocess_cmd_v3(self, cmd, echo_cmd=True, vm_alias=None):
         pid = ''
@@ -257,11 +256,11 @@ class TestCmd(Test):
                 ssh.close()
                 return output
 
-        #except pexpect.EOF:
-        #    err_info = 'End of File'
-        #    Test.test_print(self, info=err_info)
-        #    ssh.close()
-        #    Test.test_error(self, err_info)
+        except pexpect.EOF:
+            err_info = 'End of File'
+            Test.test_print(self, info=err_info)
+            ssh.close()
+            Test.test_error(self, err_info)
         except pexpect.TIMEOUT:
             err_info = 'Command : %s TIMEOUT ' % (cmd)
             #Test.test_print(self, info=err_info)
@@ -315,7 +314,8 @@ class CREATE_TEST(Test, TestCmd):
         self.id = case_id + time.strftime(":%Y-%m-%d-%H:%M:%S")
         self.params = params
         passed = False
-        endtime = time.time() + timeout
+        #endtime = time.time() + timeout
+        endtime = time.time() + float(params.get('timeout'))
         thread = threading.Thread(target=Test.test_timeout_daemon, args=(self, passed, endtime,))
         thread.name = 'TimeoutThread'
         thread.daemon = True
@@ -439,7 +439,8 @@ class CREATE_TEST(Test, TestCmd):
         log_tag = '='
         log_tag_rept = 7
         log_info = '%s Step %s %s' % (log_tag * log_tag_rept, log, log_tag * log_tag_rept)
-        print log_info
+        if self.params.get('verbose') == 'yes':
+            print log_info
         Test.log_echo_file(self, log_str=log_info)
 
     def sub_step_log(self, str):

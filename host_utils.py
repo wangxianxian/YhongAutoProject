@@ -162,6 +162,7 @@ class HostSession(TestCmd, CREATE_TEST):
         time.sleep(3)
         pid = self.get_guest_pid(cmd)
 
+
     # fix the "while select.select([fd], [], [])[0]: error: (9, 'Bad file descriptor')" with thread .
     def boot_guest_v3(self, cmd, vm_alias=None):
         cmd = cmd.rstrip(' ')

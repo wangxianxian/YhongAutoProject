@@ -1,9 +1,0 @@
-2018-03-07-10:04:16: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-2018-03-07-10:04:16: ======= Checking host kernel version: =======
-2018-03-07-10:04:16: uname -r
-2018-03-07-10:04:16: 3.10.0-514.el7.x86_64
-2018-03-07-10:04:16: ======= Checking the version of qemu: =======
-2018-03-07-10:04:16: /usr/libexec/qemu-kvm -version
-2018-03-07-10:04:16: QEMU emulator version 2.6.0 (qemu-kvm-rhev-2.6.0-28.el7_3.14), Copyright (c) 2003-2008 Fabrice Bellard
-2018-03-07-10:04:16: ======= Checking guest process existed =======
-2018-03-07-10:04:16: No found "yhong-vm" guest process

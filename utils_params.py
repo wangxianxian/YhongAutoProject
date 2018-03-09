@@ -51,9 +51,13 @@ def vm_base_cmd_update(base_params, option, old_value, new_value):
                             index = val_list.index(old_value)
                             cmd_dict[opt][index] = new_value
                         except ValueError:
-                            print 'Error: No such value: %s' % old_value
+                            #print 'Error: No such value: %s' % old_value
+                            err_info = 'Error: No such value: %s' % old_value
+                            raise Error(err_info)
             else:
-                print 'Error: No such option: %s' % option
+                #print 'Error: No such option: %s' % option
+                err_info = 'Error: No such option: %s' % option
+                raise Error(err_info)
     return base_params
 
 def vm_base_cmd_del(base_params, option):
@@ -66,7 +70,9 @@ def vm_base_cmd_del(base_params, option):
                     if opt == option:
                         del cmd_dict[opt]
             else:
-                print 'Error: No such option: %s' % option
+                #print 'Error: No such option: %s' % option
+                err_info = 'Error: No such option: %s' % option
+                raise Error(err_info)
     return base_params
 
 def build_dict_from_yaml(yaml_id):
@@ -159,9 +165,13 @@ class Params():
                         index = val_list.index(old_value)
                         self._params['vm_cmd_base'][opt][index] = new_value
                     except ValueError:
-                        print 'Error: No such value: %s' % old_value
+                        #print 'Error: No such value: %s' % old_value
+                        err_info = 'Error: No such value: %s' % old_value
+                        raise Error(err_info)
         else:
-            print 'Error: No such option: %s' % option
+            #print 'Error: No such option: %s' % option
+            err_info = 'Error: No such option: %s' % option
+            raise Error(err_info)
 
     def vm_base_cmd_del(self, option):
         if self._params['vm_cmd_base'].has_key(option) == True:
@@ -169,7 +179,9 @@ class Params():
                 if opt == option:
                     del self._params['vm_cmd_base'][opt]
         else:
-            print 'Error: No such option: %s' % option
+            #print 'Error: No such option: %s' % option
+            err_info = 'Error: No such option: %s' % option
+            raise Error(err_info)
 
     def create_qemu_cmd(self):
         cmd_line = ''
@@ -187,7 +199,7 @@ class Params():
         cmd_line = cmd_line.replace('None', '')
         cmd_line_script = cmd_line_script.replace('None', '')
         #print '===>qemu command line: \n', cmd_line
-        print '===>qemu command script line: \n', cmd_line_script
+        #print '===>qemu command script line: \n', cmd_line_script
 
         return cmd_line
 
