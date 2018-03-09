@@ -29,7 +29,7 @@ def run_case(params):
     test.sub_step_log('Check guest disk')
     output = src_remote_qmp.qmp_cmd_output('{"execute":"query-block"}')
     if not re.findall(r'drive_image1', output):
-        print 'No found system disk\n'
+        #print 'No found system disk\n'
         src_remote_qmp.test_error('No found system disk')
 
     test.sub_step_log('Connecting to src serial')
@@ -38,7 +38,7 @@ def run_case(params):
     SRC_GUEST_IP = src_serial.vm_ip
     DST_GUEST_IP = SRC_GUEST_IP
 
-    print 'src guest ip :' ,SRC_GUEST_IP
+    #print 'src guest ip :' ,SRC_GUEST_IP
     src_guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP, passwd=guest_passwd)
     test.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'

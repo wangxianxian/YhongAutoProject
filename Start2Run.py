@@ -34,28 +34,6 @@ def find_cfg(cfg_name):
     if not cfg_file:
         print 'No found corresponding %s file!' %cfg_name
 
-def test_usage():
-
-    pass
-
-def test_summary():
-
-    pass
-
-def create_start_cfg(file):
-    with open(file, 'w') as start_cfg:
-        pass
-    pass
-
-def test_start(loop_name=None, case_id=None, verbose=None,
-               drive_format=None, image_format=None, ):
-
-    pass
-
-def run(requirement_id, case_id):
-    getattr(test_modules[params.get('test_cases')[0]], "run_case")(params)
-    pass
-
 if __name__ == "__main__":
     test_modules = {}
     if len(sys.argv) < 2:
@@ -71,7 +49,7 @@ if __name__ == "__main__":
 
     log_dir = log_utils.create_log_file(requirement_id)
 
-    print params.get('log_dir', log_dir)
+    params.get('log_dir', log_dir)
 
     runner = runner.CaseRunner(params)
 

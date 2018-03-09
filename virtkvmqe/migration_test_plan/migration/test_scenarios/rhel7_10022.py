@@ -12,7 +12,6 @@ def run_case(params):
     SRC_HOST_IP = params.get('src_host_ip')
     DST_HOST_IP = params.get('dst_host_ip')
 
-    src_qemu_cmd = params.create_qemu_cmd()
     qmp_port = int(params.get('vm_cmd_base')['qmp'][0].split(',')[0].split(':')[2])
     serail_port = int(params.get('vm_cmd_base')['serial'][0].split(',')[0].split(':')[2])
     guest_passwd = params.get('guest_passwd')
@@ -24,9 +23,10 @@ def run_case(params):
     src_host_session = HostSession(id, params)
 
     test.main_step_log('1. Boot a guest.')
-
+    src_qemu_cmd = params.create_qemu_cmd()
     src_host_session.boot_guest_v3(cmd=src_qemu_cmd, vm_alias='src')
 
+    test.test_error('Trigger a error!!')
     test.sub_step_log('Check the status of src guest')
     src_remote_qmp = RemoteQMPMonitor_v2(id, params, SRC_HOST_IP, qmp_port)
 
@@ -38,7 +38,7 @@ def run_case(params):
     test.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'
     output = guest_session.guest_cmd_output(cmd)
-    if re.findall(r'Call Trace:', output):
+    if re.findall(r'Call Trace:', output) or not output:
         guest_session.test_error('Guest hit call trace')
 
     test.main_step_log('2. Save VM state into a compressed file in host')
@@ -83,11 +83,12 @@ def run_case(params):
     dst_remote_qmp.qmp_cmd_output('{"execute":"cont"}')
     dst_remote_qmp.qmp_cmd_output('{"execute":"query-status"}')
 
+    time.sleep(10)
     dst_serial = RemoteSerialMonitor_v2(case_id=id, params=params, ip=SRC_HOST_IP, port=src_serial, logined=True)
 
     DST_GUEST_IP = dst_serial.vm_ip
 
-    print 'dst guest ip :', DST_GUEST_IP
+    #print 'dst guest ip :', DST_GUEST_IP
     guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP, passwd=guest_passwd)
 
     test.main_step_log('4. Check if guest works well.')
@@ -110,7 +111,7 @@ def run_case(params):
     test.sub_step_log('check dmesg info')
     cmd = 'dmesg'
     output = guest_session.guest_cmd_output(cmd=cmd)
-    if re.findall(r'Call Trace:', output):
+    if re.findall(r'Call Trace:', output) or not output:
         guest_session.test_error('Guest hit call trace')
 
     test.sub_step_log('4.4. Reboot and then shutdown guest.')

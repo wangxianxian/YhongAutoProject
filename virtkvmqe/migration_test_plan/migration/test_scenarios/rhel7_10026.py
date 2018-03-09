@@ -22,6 +22,7 @@ def run_case(params):
     test.main_step_log('1. start vm on the src host')
     src_host_session.boot_guest_v3(cmd=src_qemu_cmd, vm_alias='src')
 
+    #test.test_error('Trigger a error!!')
     test.sub_step_log('Check the status of src guest')
     src_remote_qmp = RemoteQMPMonitor_v2(id, params, SRC_HOST_IP, qmp_port)
 

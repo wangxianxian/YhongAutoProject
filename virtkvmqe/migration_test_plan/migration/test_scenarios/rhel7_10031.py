@@ -70,7 +70,7 @@ def run_case(params):
             continue
         if not re.findall(sys_dev, dev):
             fio_dev = dev
-            print 'data disk : ', fio_dev
+            #print 'data disk : ', fio_dev
             break
 
     test.sub_step_log('run fio with data disk')

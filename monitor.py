@@ -236,6 +236,7 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
     def __init__(self, case_id, params, ip, port, logined=False):
         self._ip = ip
         self._port = port
+        self._parmas = params
         RemoteMonitor_v2.__init__(self, case_id=case_id, ip=ip, port=port, params=params)
         if logined == False:
             self.vm_ip = self.serial_login()
