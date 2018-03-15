@@ -18,41 +18,55 @@ class Test():
         self.start_time = time.time()
         self.params = params
 
-    def log_echo_file(self, log_str):
+    def log_echo_file(self, log_str, short_debug=True, serial_debug=False):
         prefix_file = self.case_id
+        log_file_list = []
         if not prefix_file:
             prefix_file = 'Untitled'
-        log_file = self.params.get('log_dir') + '/' +prefix_file
-        if os.path.exists(log_file):
-            run_log = open(log_file, "r")
-            if run_log:
-                for line in run_log.readlines():
-                    self.check_err_info(line)
+        sub_log_dir = os.path.join(self.params.get('log_dir'), self.case_id + '_logs')
+        #print sub_log_dir
+        if not os.path.exists(sub_log_dir):
+            os.mkdir(sub_log_dir)
+        if short_debug == True and serial_debug == False:
+            log_file = sub_log_dir + '/' + 'short_debug.log'
+            log_file_list.append(log_file)
+        if short_debug == True or serial_debug == True:
+            log_file = sub_log_dir + '/' + 'long_debug.log'
+            log_file_list.append(log_file)
+        if serial_debug == True:
+            log_file = sub_log_dir + '/' + 'serial_debug.log'
+            log_file_list.append(log_file)
+        for log_file in log_file_list:
+            if os.path.exists(log_file):
+                run_log = open(log_file, "r")
+                if run_log:
+                    for line in run_log.readlines():
+                        self.check_err_info(line)
 
-        if os.path.exists(log_file):
-            try:
-                run_log = open(log_file, "a")
-                for line in log_str.splitlines():
-                    timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
-                    run_log.write("%s: %s\n" % (timestamp, line))
-                    #self.check_err('TIMEOUT', line)
-            except Exception, err:
-                txt = "Fail to record log to %s.\n" % log_file
-                txt += "Log content: %s\n" % log_str
-                txt += "Exception error: %s" % err
-                self.test_error(err_info=txt)
-        else:
-            try:
-                run_log = open(log_file, "a")
-                for line in log_str.splitlines():
-                    timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
-                    run_log.write("%s: %s\n" % (timestamp, line))
-                    #self.check_err_infile('TIMEOUT', line)
-            except Exception, err:
-                txt = "Fail to record log to %s.\n" % log_file
-                txt += "Log content: %s\n" % log_str
-                txt += "Exception error: %s" % err
-                self.test_error(err_info=txt)
+            if os.path.exists(log_file):
+                try:
+                    run_log = open(log_file, "a")
+                    for line in log_str.splitlines():
+                        timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
+                        run_log.write("%s: %s\n" % (timestamp, line))
+                        #self.check_err('TIMEOUT', line)
+                except Exception, err:
+                    txt = "Fail to record log to %s.\n" % log_file
+                    txt += "Log content: %s\n" % log_str
+                    txt += "Exception error: %s" % err
+                    self.test_error(err_info=txt)
+            else:
+                try:
+                    run_log = open(log_file, "a")
+                    for line in log_str.splitlines():
+                        timestamp = time.strftime("%Y-%m-%d-%H:%M:%S")
+                        run_log.write("%s: %s\n" % (timestamp, line))
+                        #self.check_err_infile('TIMEOUT', line)
+                except Exception, err:
+                    txt = "Fail to record log to %s.\n" % log_file
+                    txt += "Log content: %s\n" % log_str
+                    txt += "Exception error: %s" % err
+                    self.test_error(err_info=txt)
 
     def check_err_info(self, content):
             if re.findall(r'Error', content):
@@ -62,10 +76,10 @@ class Test():
                     content = ':'.join(content_list[-2:])
                 raise usr_exceptions.Error(content)
 
-    def test_print(self, info):
+    def test_print(self, info, short_debug=True, serial_debug=False):
         if self.params.get('verbose') == 'yes':
             print info
-        self.log_echo_file(log_str=info)
+        self.log_echo_file(log_str=info, short_debug=short_debug, serial_debug=serial_debug)
 
     def total_test_time(self, start_time):
         self._passed = True
@@ -309,10 +323,14 @@ class TestCmd(Test):
 
 
 class CREATE_TEST(Test, TestCmd):
-    def __init__(self, case_id, params, guest_name, dst_ip=None, timeout=1800):
+    def __init__(self, case_id, params):
         self.case_id = case_id
-        self.id = case_id + time.strftime(":%Y-%m-%d-%H:%M:%S")
+        #self.id = case_id + time.strftime(":%Y-%m-%d-%H:%M:%S")
+        self.id = case_id
         self.params = params
+        self.dst_ip = params.get('dst_host_ip')
+        self.src_ip = params.get('src_host_ip')
+        self.timeout = params.get('timeout')
         passed = False
         #endtime = time.time() + timeout
         endtime = time.time() + float(params.get('timeout'))
@@ -321,8 +339,8 @@ class CREATE_TEST(Test, TestCmd):
         thread.daemon = True
         thread.start()
         Test.__init__(self, self.id, self.params)
-        self.guest_name = guest_name
-        self.clear_env(guest_name=guest_name, dst_ip=dst_ip)
+        self.guest_name = params.get('vm_cmd_base')['name'][0]
+        self.clear_env()
 
     def get_id(self):
         info = 'Start to run case : %s' % self.case_id
@@ -330,34 +348,40 @@ class CREATE_TEST(Test, TestCmd):
         Test.test_print(self, '%s\n' % ('*' * 50))
         return self.id
 
-    def check_guest_process(self, guest_name, dst_ip):
+    def check_guest_process(self):
         pid_list = []
         dst_pid_list = []
         output = ''
-        cmd_check_list = []
-        cmd_check_list.append('ps -axu | grep %s | grep -v grep' % guest_name)
-        if dst_ip:
-            cmd_check_list.append('ssh root@%s ps -axu | grep %s | grep -v grep' % (dst_ip, guest_name))
-        for cmd_check in cmd_check_list:
-            output, _ = TestCmd.subprocess_cmd_v2(self, echo_cmd=False, echo_output=False, cmd=cmd_check)
-            if output and not re.findall(r'ssh root', cmd_check):
-                pid = re.split(r"\s+", output)[1]
-                pid_list.append(pid)
-                info =  'Found a %s guest process : pid = %s' % (guest_name, pid_list)
-                TestCmd.test_print(self, info)
-            elif output and re.findall(r'ssh root', cmd_check):
-                pid = re.split(r"\s+", output)[1]
-                dst_pid_list.append(pid)
-                info = 'Found a %s dst guest process : pid = %s' % (guest_name, dst_pid_list)
-                TestCmd.test_print(self, info)
-            elif not output and re.findall(r'ssh root', cmd_check):
-                info = 'No found %s dst guest process' % guest_name
-                TestCmd.test_print(self, info)
-            elif not output and not re.findall(r'ssh root', cmd_check):
-                info = 'No found %s guest process' % guest_name
-                TestCmd.test_print(self, info)
 
-        return pid_list, dst_pid_list
+        if self.dst_ip:
+            src_cmd_check = 'ssh root@%s ps -axu | grep %s | grep -v grep' % (self.dst_ip, self.guest_name)
+            output, _ = TestCmd.subprocess_cmd_v2(self, echo_cmd=False, echo_output=False, cmd=src_cmd_check)
+            if output:
+                pid = re.split(r"\s+", output)[1]
+                #pid_list.append(pid)
+                info =  'Found a %s dst guest process : pid = %s' % (self.guest_name, pid)
+                TestCmd.test_print(self, info)
+                #for pid in pid_list:
+                self.kill_dst_guest_process(pid)
+            else:
+                info = 'No found %s dst guest process' % self.guest_name
+                TestCmd.test_print(self, info)
+            time.sleep(3)
+
+        src_cmd_check = 'ps -axu | grep %s | grep -v grep' % self.guest_name
+        output, _ = TestCmd.subprocess_cmd_v2(self, echo_cmd=False, echo_output=False, cmd=src_cmd_check)
+        if output:
+            pid = re.split(r"\s+", output)[1]
+            #pid_list.append(pid)
+            info =  'Found a %s guest process : pid = %s' % (self.guest_name, pid)
+            TestCmd.test_print(self, info)
+            #for pid in pid_list:
+            self.kill_guest_process(pid)
+        else:
+            info = 'No found %s guest process' % self.guest_name
+            TestCmd.test_print(self, info)
+
+        #return pid_list, dst_pid_list
 
     # need to merger to host_utils.py
     def host_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=600):
@@ -401,38 +425,45 @@ class CREATE_TEST(Test, TestCmd):
             TestCmd.test_print(self, output)
         return output
 
-    def kill_guest_process(self, pid, dst_ip=None):
-        if dst_ip:
-            cmd = 'ssh root@%s kill -9 %s' %(dst_ip, pid)
-            #self.host_cmd_output(cmd=cmd)
-            self.host_cmd(cmd=cmd)
-        else:
-            cmd = 'kill -9 %s' % pid
-            #self.host_cmd_output(cmd=cmd)
+    def kill_guest_process(self, pid):
+        cmd = 'kill -9 %s' % pid
+        #self.host_cmd_output(cmd=cmd)
+        self.host_cmd(cmd=cmd)
+
+    def kill_dst_guest_process(self, pid):
+            cmd = 'ssh root@%s kill -9 %s' %(self.dst_ip, pid)
             self.host_cmd(cmd=cmd)
 
-    def clear_env(self, guest_name, dst_ip):
+    def clear_env(self):
         pid_list = []
         dst_pid_list = []
         Test.test_print(self, '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         Test.test_print(self, '======= Checking host kernel version: =======')
         #self.host_cmd_output('uname -r')
         self.host_cmd_output_v2('uname -r')
+        if self.dst_ip:
+            Test.test_print(self, '======= Checking host kernel version on dst host: =======')
+            cmd = 'ssh root@%s uname -r' %(self.dst_ip)
+            self.host_cmd_output_v2(cmd)
 
         Test.test_print(self, '======= Checking the version of qemu: =======')
         #self.host_cmd_output('/usr/libexec/qemu-kvm -version')
         self.host_cmd_output_v2('/usr/libexec/qemu-kvm -version')
+        if self.dst_ip:
+            Test.test_print(self, '======= Checking the version of qemu on dst host: =======')
+            cmd = 'ssh root@%s /usr/libexec/qemu-kvm -version' %(self.dst_ip)
+            self.host_cmd_output_v2(cmd)
 
         Test.test_print(self,'======= Checking guest process existed =======')
-        pid_list, dst_pid_list = self.check_guest_process(guest_name, dst_ip)
-        if pid_list:
-            for pid in pid_list:
-               self.kill_guest_process(pid)
-               #time.sleep(3)
-        if dst_pid_list:
-            for pid in dst_pid_list:
-               self.kill_guest_process(pid, dst_ip)
-               #time.sleep(3)
+        self.check_guest_process()
+        # if pid_list:
+        #     for pid in pid_list:
+        #        self.kill_guest_process(pid)
+        #        #time.sleep(3)
+        # if dst_pid_list:
+        #     for pid in dst_pid_list:
+        #        self.kill_dst_guest_process(pid)
+        #        #time.sleep(3)
         Test.test_print(self, '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
     def main_step_log(self, log):

@@ -11,19 +11,17 @@ from migration_utils import ping_pong_migration
 import threading
 import Queue
 
-def scp_thread(session, queue, passwd, src_file, dst_file, src_ip=None, dst_ip=None, timeout=300):
-    session.host_cmd_scp(passwd, src_file, dst_file, src_ip, dst_ip, timeout)
+def scp_thread(session, queue, src_file, dst_file, src_ip=None, dst_ip=None, timeout=300):
+    session.host_cmd_scp(src_file, dst_file, src_ip, dst_ip, timeout)
 
 def run_case(params):
     SRC_HOST_IP = params.get('src_host_ip')
     DST_HOST_IP = params.get('dst_host_ip')
     qmp_port = int(params.get('vm_cmd_base')['qmp'][0].split(',')[0].split(':')[2])
     serail_port = int(params.get('vm_cmd_base')['serial'][0].split(',')[0].split(':')[2])
-    guest_passwd = params.get('guest_passwd')
-    guest_name = params.get('vm_cmd_base')['name'][0]
     queue = Queue.Queue()
 
-    test = CREATE_TEST(case_id='rhel7_10059', params=params, guest_name=guest_name, dst_ip=DST_HOST_IP, timeout=3600)
+    test = CREATE_TEST(case_id='rhel7_10059', params=params)
     id = test.get_id()
     src_host_session = HostSession(id, params)
 
@@ -37,10 +35,10 @@ def run_case(params):
 
     test.sub_step_log('Connecting to src serial')
     src_serial = RemoteSerialMonitor_v2(id, params, SRC_HOST_IP, serail_port)
-    SRC_GUEST_IP = src_serial.vm_ip
+    SRC_GUEST_IP = src_serial.serial_login()
     DST_GUEST_IP = SRC_GUEST_IP
 
-    src_guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP, passwd=guest_passwd)
+    src_guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP)
     test.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'
     output = src_guest_session.guest_cmd_output(cmd)
@@ -70,9 +68,7 @@ def run_case(params):
 
     src_guest_session.guest_cmd_output(cmd='rm -rf /home/file_guest')
     thread = threading.Thread(target=scp_thread,
-                              args=(src_host_session, queue, guest_passwd,
-                                    '/home/file_host', '/home/file_guest',
-                                    None, SRC_GUEST_IP, 600))
+                              args=(src_host_session, queue, '/home/file_host', '/home/file_guest', None, SRC_GUEST_IP, 600))
 
     thread.name = 'scp_thread'
     thread.daemon = True
@@ -94,7 +90,7 @@ def run_case(params):
 
     test.sub_step_log('Login dst guest')
 
-    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP, passwd=guest_passwd)
+    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP)
     dst_guest_session.guest_cmd_output(cmd='dmesg')
 
     test.main_step_log('6. Ping-pong migrate until file transfer finished')
@@ -105,7 +101,7 @@ def run_case(params):
 
     test.sub_step_log('Login dst guest after ping-pong migration')
 
-    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP, passwd=guest_passwd)
+    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP)
     dst_guest_session.guest_cmd_output(cmd='dmesg')
 
     file_src_host_md5 = src_host_session.host_cmd_output_v2(cmd='md5sum /home/file_host')
@@ -116,7 +112,7 @@ def run_case(params):
 
     test.main_step_log('7. Transfer file from guest to host')
     thread = threading.Thread(target=src_host_session.host_cmd_scp,
-                              args=(guest_passwd, '/home/file_guest', '/home/file_host2',
+                              args=('/home/file_guest', '/home/file_host2',
                                     DST_GUEST_IP, None, 600))
     thread.name = 'scp_thread2'
     thread.daemon = True
@@ -142,7 +138,5 @@ def run_case(params):
 
     test.sub_step_log('Login dst guest after ping-pong migration')
 
-    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP, passwd=guest_passwd)
+    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP)
     dst_guest_session.guest_cmd_output(cmd='dmesg')
-
-    src_host_session.test_pass()

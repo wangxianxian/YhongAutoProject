@@ -13,6 +13,10 @@ guest_passwd: 'kvmautotest'
 src_host_ip: '10.66.10.122'
 dst_host_ip: '10.66.10.208'
 
+test_requirement:
+ name:
+  - "Migration - x86"
+
 # qemu command line
 vm_cmd_base:
  name:
@@ -62,11 +66,21 @@ vm_cmd_base:
 
 
 test_cases:
- - 'rhel7_10022'
- - 'rhel7_10026'
- - 'rhel7_10031'
- - 'rhel7_10039'
- #- 'rhel7_10059'
+ rhel7_10022:
+  name:
+   - "[migration] Migrate guest via a compressed file"
+ rhel7_10026:
+  name:
+   - "[migration] Do live migrate during vm reboot"
+ rhel7_10031:
+  name:
+   - "[migration] Live migration support in virtio-blk-data-plane"
+ rhel7_10039:
+  name:
+   - "[migration] Do migration after hot plug vdisk"
+ rhel7_10059:
+  name:
+   - "[migration] Ping-pong migration during file transfer"
 
 verbose: 'no'
 
