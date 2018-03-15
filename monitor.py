@@ -7,6 +7,7 @@ import re
 import time
 from usr_exceptions import SocketConnectFailed
 from vm import Test
+import Queue
 
 #===========================================Class v2====================================================#
 class MonitorFile_v2(Test):
@@ -133,6 +134,9 @@ class RemoteMonitor_v2(Test):
     def __init__(self, case_id, params, ip, port):
         Test.__init__(self, case_id=case_id, params=params)
         self._ip = ip
+        self._qmp_port = int(params.get('vm_cmd_base')['qmp'][0].split(',')[0].split(':')[2])
+        self._serail_port = int(params.get('vm_cmd_base')['serial'][0].split(',')[0].split(':')[2])
+        self._guest_passwd = params.get('guest_passwd')
         self._port = port
         self.address = (ip, port)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -143,13 +147,102 @@ class RemoteMonitor_v2(Test):
         except socket.error:
             Test.test_error(self, 'Fail to connect to monitor(%s:%s).' %(ip, port))
 
+    def quit_vm_qmp(self):
+        cmd = '{"execute":"qmp_capabilities"}'
+        self.test_print(cmd)
+        self.send_cmd(cmd)
+        output = self.rec_data()
+        self.test_print(output)
+
+        cmd = '{"execute":"query-status"}'
+        self.test_print(cmd)
+        self.send_cmd(cmd)
+        output = self.rec_data()
+        self.test_print(output)
+        if re.findall(r'paused', output):
+            cmd = '{"execute":"cont"}'
+            self.test_print(cmd)
+            self.send_cmd(cmd)
+            output = self.rec_data()
+            self.test_print(output)
+        if re.findall(r'inmigrate', output) \
+                or re.findall(r'postmigrate', output):
+            cmd = '{"execute":"quit"}'
+            self.test_print(cmd)
+            self.send_cmd(cmd)
+            output = self.rec_data()
+            self.test_print(output)
+
+    def check_vm_alive_serial(self):
+        #try:
+        Test.test_print(self, '=====>Checking vm alive')
+        self.send_cmd('\n')
+        output = self.rec_data()
+        info = '--->', output
+        Test.test_print(self, info)
+        if not output:
+            return False
+        else:
+            return True
+        # except:
+        #     return False
+
+    def shut_down_vm_serial(self, timeout=60):
+        end_time = time.time() + timeout
+        flag_timeout = True
+        output = ''
+        #if self.check_vm_alive_serial():
+            # self.send_cmd('\n')
+            # if re.findall(r'login:', self.rec_data()):
+            #     cmd = 'root'
+            #     self.send_cmd(cmd)
+            #     output = self.rec_data(recv_timeout=3)
+            #     self.test_print(output)
+            #
+            #     self.send_cmd(self._guest_passwd)
+            #     output = self.rec_data(recv_timeout=3)
+            #     self.test_print(output)
+        Test.test_print(self, 'Shutting down vm by serial (%s:%s).' %(self._ip, self._serail_port))
+        cmd = 'shutdown -h now'
+        self.send_cmd(cmd)
+        while time.time() < end_time:
+            output = self.rec_data()
+            self.test_print(info=output, serial_debug=True)
+            if re.findall(r'Power down', output):
+                if re.findall(r'Call Trace:', output):
+                    self.test_error('Guest hit call trace')
+                flag_timeout = False
+                time.sleep(3)
+                break
+
+        if not output:
+            self.test_print('Serial is hung...')
+            flag_timeout = False
+
+        if flag_timeout:
+            self.test_error('Power down system timeout (%s:%s).' %(self._ip, self._serail_port))
+
     def __del__(self):
+        # if self._port == self._qmp_port:
+        #     self.quit_vm_qmp()
+        #     Test.test_print(self, 'Close the qmp monitor(%s:%s).' % (self._ip, self._port))
+        if self._port == self._serail_port:
+            info = '[__del__(self)]%s Shutting down vm %s' % (('*' * 20), ('*' * 20))
+            Test.test_print(self, info)
+            self.shut_down_vm_serial()
+            Test.test_print(self, 'Close the serial monitor(%s:%s).' % (self._ip, self._port))
         self._socket.close()
-        Test.test_print(self, 'Close the monitor(%s:%s).' % (self._ip, self._port))
 
     def close(self):
+        # if self._port == self._qmp_port:
+        #     self.quit_vm_qmp()
+        #     Test.test_print(self, 'Close the qmp monitor(%s:%s).' % (self._ip, self._port))
+        if self._port == self._serail_port:
+            info = '[close(self)]%s Shutting down vm %s' % (('*' * 20), ('*' * 20))
+            Test.test_print(self, info)
+            self.shut_down_vm_serial()
+            Test.test_print(self, 'Close the serial monitor(%s:%s).' % (self._ip, self._port))
         self._socket.close()
-        Test.test_print(self, 'Close the monitor(%s:%s).' % (self._ip, self._port))
 
     def data_availabl(self, timeout=DATA_AVAILABLE_TIMEOUT):
         timeout = max(0, timeout)
@@ -161,7 +254,6 @@ class RemoteMonitor_v2(Test):
     def send_cmd(self, cmd):
         try:
             self._socket.sendall(cmd + '\n')
-
         except socket.error:
             Test.test_error(self, 'Fail to send command to monitor(%s:%s).'%(self._ip, self._port))
 
@@ -233,22 +325,26 @@ class RemoteQMPMonitor_v2(RemoteMonitor_v2):
             return output
 
 class RemoteSerialMonitor_v2(RemoteMonitor_v2):
-    def __init__(self, case_id, params, ip, port, logined=False):
+    def __init__(self, case_id, params, ip, port):
         self._ip = ip
         self._port = port
         self._parmas = params
+        self._guest_passwd = params.get('guest_passwd')
+        #self._logined_queue = Queue.Queue()
+        #self._logined_queue.put('no')
         RemoteMonitor_v2.__init__(self, case_id=case_id, ip=ip, port=port, params=params)
-        if logined == False:
-            self.vm_ip = self.serial_login()
-        else:
-            self.vm_ip = self.serial_get_ip()
+        #if logined == False:
+        #self.vm_ip = self.serial_login()
+        # else:
+        #     self.vm_ip = self.serial_get_ip()
 
-    def serial_login(self, passwd='kvmautotest', timeout=300):
-        end_time = time.time() + timeout
+    def serial_login(self, timeout=300):
         output = ''
+
+        end_time = time.time() + timeout
         while time.time() < end_time:
             output = RemoteMonitor_v2.rec_data(self)
-            RemoteMonitor_v2.test_print(self, output)
+            RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
             if re.findall(r'Call Trace:', output):
                 RemoteQMPMonitor_v2.test_error(self, 'Guest hit call trace')
             if re.search(r"login:", output):
@@ -259,11 +355,11 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
         cmd = 'root'
         RemoteMonitor_v2.send_cmd(self, cmd)
         output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
-        RemoteMonitor_v2.test_print(self, output)
+        RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
 
-        RemoteMonitor_v2.send_cmd(self, passwd)
+        RemoteMonitor_v2.send_cmd(self, self._guest_passwd)
         output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
-        RemoteMonitor_v2.test_print(self, output)
+        RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
 
         ip = self.serial_get_ip()
         return ip
@@ -274,7 +370,7 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
 
     def serial_cmd_output(self, cmd, recv_timeout=0, timeout=300):
         output = ''
-        RemoteMonitor_v2.test_print(self, cmd)
+        RemoteMonitor_v2.test_print(self, info=cmd, serial_debug=True)
         RemoteMonitor_v2.send_cmd(self, cmd)
         endtime = time.time() + timeout
         while time.time() < endtime:
@@ -285,7 +381,7 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
             err_info = '%s TIMEOUT' % cmd
             RemoteMonitor_v2.test_error(self, err_info)
         output = RemoteMonitor_v2.remove_cmd_echo_blank_space(self, cmd=cmd, output=output)
-        RemoteMonitor_v2.test_print(self, output)
+        RemoteMonitor_v2.test_print(self, info=cmd, serial_debug=True)
         return output
 
     def serial_get_ip(self):
@@ -293,6 +389,7 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
         output = ''
         cmd = "ifconfig | grep -E 'inet ' | awk '{ print $2}'"
         output = self.serial_cmd_output(cmd, recv_timeout=3)
+        self.test_print(info=output, serial_debug=True)
         for ip in output.splitlines():
             if ip == '127.0.0.1':
                 continue

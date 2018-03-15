@@ -5,9 +5,9 @@ import pexpect
 
 #============================Class Guest_Session_v2=================================================#
 class GuestSession_v2(TestCmd):
-    def __init__(self, ip, passwd, case_id, params):
+    def __init__(self, ip, case_id, params):
         self.__ip = ip
-        self.__passwd = passwd
+        self.__passwd = params.get('guest_passwd')
         TestCmd.__init__(self, case_id=case_id, params=params)
 
     def exc_cmd_guest(self, ip, passwd, cmd, timeout=300):

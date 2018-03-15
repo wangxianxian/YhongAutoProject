@@ -14,10 +14,8 @@ def run_case(params):
     src_qemu_cmd = params.create_qemu_cmd()
     qmp_port = int(params.get('vm_cmd_base')['qmp'][0].split(',')[0].split(':')[2])
     serail_port = int(params.get('vm_cmd_base')['serial'][0].split(',')[0].split(':')[2])
-    guest_passwd = params.get('guest_passwd')
-    guest_name = params.get('vm_cmd_base')['name'][0]
 
-    test = CREATE_TEST(case_id='rhel7_10039', params=params, guest_name=guest_name, dst_ip=DST_HOST_IP, timeout=1800)
+    test = CREATE_TEST(case_id='rhel7_10039', params=params)
     id = test.get_id()
     src_host_session = HostSession(id, params)
 
@@ -33,13 +31,13 @@ def run_case(params):
         src_remote_qmp.test_error('No found system disk')
 
     test.sub_step_log('Connecting to src serial')
-    src_serial = RemoteSerialMonitor_v2(id, params, SRC_HOST_IP, serail_port, logined=False)
+    src_serial = RemoteSerialMonitor_v2(id, params, SRC_HOST_IP, serail_port)
 
-    SRC_GUEST_IP = src_serial.vm_ip
+    SRC_GUEST_IP = src_serial.serial_login()
     DST_GUEST_IP = SRC_GUEST_IP
 
     #print 'src guest ip :' ,SRC_GUEST_IP
-    src_guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP, passwd=guest_passwd)
+    src_guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP)
     test.sub_step_log('Check dmesg info ')
     cmd = 'dmesg'
     output = src_guest_session.guest_cmd_output(cmd)
@@ -95,18 +93,18 @@ def run_case(params):
         time.sleep(3)
 
     test.sub_step_log('Login dst guest')
+    test.sub_step_log('Connecting to dst serial')
+    dst_serial = RemoteSerialMonitor_v2(id, params, DST_HOST_IP, serail_port)
 
     test.sub_step_log('Check disk on dst guest')
     output = src_remote_qmp.qmp_cmd_output('{"execute":"query-block"}')
     if not re.findall(r'drive-virtio-blk0', output) or not re.findall(r'drive_r4', output):
         src_remote_qmp.test_error('Hot plug disk failed on dst')
 
-    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP, passwd=guest_passwd)
+    dst_guest_session = GuestSession_v2(case_id=id, params=params, ip=DST_GUEST_IP)
     test.sub_step_log('Check dmesg info on dst guest')
     cmd = 'dmesg'
     output = dst_guest_session.guest_cmd_output(cmd=cmd)
     if re.findall(r'Call Trace:', output):
         dst_guest_session.test_error('Guest hit call trace')
-
-    src_host_session.test_pass()
 

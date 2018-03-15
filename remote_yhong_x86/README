@@ -1,2 +1,0 @@
-scp -r /home/yhong/Project/YhongAutoProject/* 10.66.10.20:/home/yhong/yhong-auto-project/
-scp -r /home/yhong/Project/YhongAutoProject/* 10.66.9.109:/home/yhong/yhong-auto-project/

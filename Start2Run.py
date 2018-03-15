@@ -38,8 +38,8 @@ if __name__ == "__main__":
     test_modules = {}
     if len(sys.argv) < 2:
         print "Usage of %s:" % sys.argv[0]
-        print " For run test loop please add --requirement=$requirement_id"
-        print " For run test case please add --requirement=$requirement_id --testcase=$case_id"
+        print " For run test loop please add $requirement_id"
+        print " For run test case please add $requirement_id $case_id"
         print " Other parameters please check README"
         sys.exit(1)
 

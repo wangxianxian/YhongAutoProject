@@ -3,20 +3,26 @@ import os, time, sys
 class Status:
     PASS = "\033[92mPASS\033[00m"
     ERROR = "\033[91mERROR\033[00m"
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNINGYELLOW = '\033[93m'
+    FAILRED = '\033[91m'
+    ENDC = '\033[5m'
 
 bars = ['|', '/', '-', '\\', '|', '/', '-', '\\']
 class Results():
     def __init__(self):
-        pass
+        self._bars = ['|', '/', '-', '\\', '|', '/', '-', '\\']
 
     def display_sum_results(self):
         pass
 
-    def dispaly_process_bar(self):
+    def dispaly_process_bar(self, condition):
         sys.stdout.write(' ')
         sys.stdout.flush()
-        while 1:
-            for bar in bars:
+        while condition:
+            for bar in self._bars:
                 sys.stdout.write('\b')
                 sys.stdout.write(bar)
                 sys.stdout.flush()

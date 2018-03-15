@@ -10,6 +10,8 @@ import utils
 #========================Class Host_Session=====================================#
 class HostSession(TestCmd, CREATE_TEST):
     def __init__(self, case_id, params):
+        self._guest_name = params.get('vm_cmd_base')['name'][0]
+        self._guest_passwd = params.get('guest_passwd')
         TestCmd.__init__(self, case_id=case_id, params=params)
 
     def host_cmd_output(self, cmd, echo_cmd=True, echo_output=True, timeout=600):
@@ -54,7 +56,7 @@ class HostSession(TestCmd, CREATE_TEST):
         subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    def host_cmd_scp(self, passwd, src_file, dst_file, src_ip=None, dst_ip=None, timeout=300):
+    def host_cmd_scp(self, src_file, dst_file, src_ip=None, dst_ip=None, timeout=300):
         cmd = ''
         output = ''
         if dst_ip:
@@ -62,7 +64,7 @@ class HostSession(TestCmd, CREATE_TEST):
         if src_ip:
             cmd = 'scp %s:%s %s' % (src_ip, src_file, dst_file)
         TestCmd.test_print(self, cmd)
-        output = TestCmd.remote_scp_v2(self, cmd=cmd, passwd=passwd, timeout=timeout)
+        output = TestCmd.remote_scp_v2(self, cmd=cmd, passwd=self._guest_passwd, timeout=timeout)
         # Here need to remove command echo and blank space again
         output = TestCmd.remove_cmd_echo_blank_space(self, output=output, cmd=cmd)
         if re.findall(r'No such file or directory', output):
@@ -121,7 +123,8 @@ class HostSession(TestCmd, CREATE_TEST):
         pid_list = []
         dst_pid = ''
         cmd_check_list = []
-        guest_name = utils.get_guest_name(cmd=cmd)
+        #guest_name = utils.get_guest_name(cmd=cmd)
+        guest_name = self._guest_name
         #print '>>>>>Guest name :', guest_name
         if dst_ip:
             cmd_check = 'ssh root@%s ps -axu | grep %s | grep -v grep' % \
