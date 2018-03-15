@@ -227,7 +227,7 @@ class RemoteMonitor_v2(Test):
         #     self.quit_vm_qmp()
         #     Test.test_print(self, 'Close the qmp monitor(%s:%s).' % (self._ip, self._port))
         if self._port == self._serail_port:
-            info = '[__del__(self)]%s Shutting down vm %s' % (('*' * 20), ('*' * 20))
+            info = '%s Shutting down vm %s' % (('*' * 20), ('*' * 20))
             Test.test_print(self, info)
             self.shut_down_vm_serial()
             Test.test_print(self, 'Close the serial monitor(%s:%s).' % (self._ip, self._port))

@@ -56,7 +56,7 @@ def run_case(params):
 
     test.main_step_log('3. Start des vm in migration-listen mode: "-incoming tcp:0:****"')
 
-    params.vm_base_cmd_update('m', '4096', '2048')
+    #params.vm_base_cmd_update('m', '4096', '2048')
     params.vm_base_cmd_add('incoming', 'tcp:0:4000')
     dst_qemu_cmd = params.create_qemu_cmd()
 
