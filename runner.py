@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from utils_results import ProgressBar, Results, Status
+import traceback
 
 BASE_FILE = os.path.dirname(os.path.abspath(__file__))
 bars = ['|', '/', '-', '\\', '|', '/', '-', '\\']
@@ -71,11 +72,20 @@ class CaseRunner():
         print '\033[93m%s\033[00m' % ('*' * 94)
 
     def _run(self, case, case_queue):
+        log_file_list = []
         try:
             getattr(self._case_dict[case], "run_case")(self._params)
         except KeyboardInterrupt:
             raise
-        except:
+        except Exception as info:
+            test_log_dir = os.path.join(self._params.get('log_dir'), case + '_logs')
+            log_file = test_log_dir + '/' + 'long_debug.log'
+            log_file_list.append(log_file)
+            log_file = test_log_dir + '/' + 'short_debug.log'
+            log_file_list.append(log_file)
+            for log_file in log_file_list:
+                if os.path.exists(log_file):
+                    traceback.print_exc(file=open(log_file, "a"))
             case_queue.put(case)
 
     def _clean_vm(self):

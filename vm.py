@@ -118,7 +118,9 @@ class Test():
     def test_error(self, err_info):
         err_info = 'Case Error: ' + err_info
         self.log_echo_file(log_str=err_info)
+        self.test_print(info=err_info)
         raise usr_exceptions.Error(err_info)
+        #usr_exceptions.Error(err_info)
 
     def test_pass(self):
         pass_info = '%s \n' %('*' * 50)
