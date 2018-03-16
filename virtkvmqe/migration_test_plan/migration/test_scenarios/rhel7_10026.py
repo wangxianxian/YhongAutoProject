@@ -17,8 +17,6 @@ def run_case(params):
     id = test.get_id()
     src_host_session = HostSession(id, params)
 
-    test.test_error('Trigger a error!')
-
     test.main_step_log('1. start vm on the src host')
     src_host_session.boot_guest_v3(cmd=src_qemu_cmd, vm_alias='src')
 

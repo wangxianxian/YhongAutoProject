@@ -20,6 +20,7 @@ class CaseRunner():
         self._case_list = []
         self._case_dict = {}
         self._case_dict = utils_modules.setup_modules(self._requirement_id)
+        self._only_case_list = params.get('only_case_list')
         self._run_result = {}
         self._run_result['error_cases'] = []
         self._run_result['pass_cases'] = []
@@ -39,9 +40,12 @@ class CaseRunner():
                 time.sleep(0.5)
 
     def get_case_list(self):
-        for k, v in self._params.get('test_cases').items():
-            self._case_list.append(k)
-        #print self._case_list
+        if self._only_case_list:
+            for case in self._only_case_list:
+                self._case_list.append(case)
+        else:
+            for k, v in self._params.get('test_cases').items():
+                self._case_list.append(k)
 
     def display_sum_results(self):
         self._run_result['ERROR'] = len(self._run_result['error_cases'])

@@ -352,12 +352,21 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
         if not output and not re.search(r"login:", output):
             RemoteMonitor_v2.test_error(self, 'LOGIN TIMEOUT!')
 
+        RemoteMonitor_v2.send_cmd(self, '\n')
+        output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
+        RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
+
+        RemoteMonitor_v2.send_cmd(self, '\n')
+        output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
+        RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
+
         cmd = 'root'
         RemoteMonitor_v2.send_cmd(self, cmd)
         output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
         RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
 
         RemoteMonitor_v2.send_cmd(self, self._guest_passwd)
+        RemoteMonitor_v2.test_print(self, info=self._guest_passwd, serial_debug=True)
         output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
         RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
 
