@@ -295,13 +295,13 @@ class RemoteQMPMonitor_v2(RemoteMonitor_v2):
         cmd = '{"execute":"qmp_capabilities"}'
         RemoteMonitor_v2.test_print(self, cmd)
         RemoteMonitor_v2.send_cmd(self, cmd)
-        output = RemoteMonitor_v2.rec_data(self)
+        output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
         RemoteMonitor_v2.test_print(self, output)
 
         cmd = '{"execute":"query-status"}'
         RemoteMonitor_v2.test_print(self, cmd)
         RemoteMonitor_v2.send_cmd(self, cmd)
-        output = RemoteMonitor_v2.rec_data(self)
+        output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
         RemoteMonitor_v2.test_print(self, output)
 
     def qmp_cmd_output(self, cmd, echo_cmd=True, echo_output=True, recv_timeout=0, timeout=1800):
@@ -343,7 +343,7 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
 
         end_time = time.time() + timeout
         while time.time() < end_time:
-            output = RemoteMonitor_v2.rec_data(self)
+            output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
             RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
             if re.findall(r'Call Trace:', output):
                 RemoteQMPMonitor_v2.test_error(self, 'Guest hit call trace')
@@ -351,14 +351,6 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
                 break
         if not output and not re.search(r"login:", output):
             RemoteMonitor_v2.test_error(self, 'LOGIN TIMEOUT!')
-
-        RemoteMonitor_v2.send_cmd(self, '\n')
-        output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
-        RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
-
-        RemoteMonitor_v2.send_cmd(self, '\n')
-        output = RemoteMonitor_v2.rec_data(self, recv_timeout=3)
-        RemoteMonitor_v2.test_print(self, info=output, serial_debug=True)
 
         cmd = 'root'
         RemoteMonitor_v2.send_cmd(self, cmd)
@@ -376,6 +368,10 @@ class RemoteSerialMonitor_v2(RemoteMonitor_v2):
     def serial_output(self, max_recv_data=1024):
         output = RemoteMonitor_v2.rec_data(self, max_recv_data=max_recv_data)
         return output
+
+    def serial_cmd(self, cmd):
+        RemoteMonitor_v2.test_print(self, info=cmd, serial_debug=True)
+        RemoteMonitor_v2.send_cmd(self, cmd)
 
     def serial_cmd_output(self, cmd, recv_timeout=0, timeout=300):
         output = ''
