@@ -95,7 +95,7 @@ class Params():
             for opt, val_list in self._params['vm_cmd_base'].items():
                 if opt == option and not value:
                     del self._params['vm_cmd_base'][opt]
-                else:
+                elif opt == option and value:
                     try:
                         index = val_list.index(value)
                         del self._params['vm_cmd_base'][opt][index]
