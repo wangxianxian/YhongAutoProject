@@ -90,11 +90,19 @@ class Params():
             err_info = 'Error: No such option: %s' % option
             raise Error(err_info)
 
-    def vm_base_cmd_del(self, option):
+    def vm_base_cmd_del(self, option, value=None):
         if self._params['vm_cmd_base'].has_key(option) == True:
             for opt, val_list in self._params['vm_cmd_base'].items():
-                if opt == option:
+                if opt == option and not value:
                     del self._params['vm_cmd_base'][opt]
+                else:
+                    try:
+                        index = val_list.index(value)
+                        del self._params['vm_cmd_base'][opt][index]
+                    except ValueError:
+                        #print 'Error: No such value: %s' % old_value
+                        err_info = 'Error: No such value: %s' % value
+                        raise Error(err_info)
         else:
             #print 'Error: No such option: %s' % option
             err_info = 'Error: No such option: %s' % option
