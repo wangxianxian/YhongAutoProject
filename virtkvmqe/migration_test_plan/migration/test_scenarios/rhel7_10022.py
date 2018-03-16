@@ -80,8 +80,7 @@ def run_case(params):
     dst_remote_qmp.qmp_cmd_output('{"execute":"cont"}')
     dst_remote_qmp.qmp_cmd_output('{"execute":"query-status"}')
 
-    time.sleep(10)
-    dst_serial = RemoteSerialMonitor_v2(case_id=id, params=params, ip=SRC_HOST_IP, port=src_serial)
+    dst_serial = RemoteSerialMonitor_v2(case_id=id, params=params, ip=SRC_HOST_IP, port=serail_port)
 
     guest_session = GuestSession_v2(case_id=id, params=params, ip=SRC_GUEST_IP)
 

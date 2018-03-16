@@ -40,8 +40,8 @@ class Params():
                     return file_path
 
         if not file_path:
-            print 'No found corresponding yaml file :', search_name
-            return file_path
+            info = 'No found corresponding yaml file : %s' %(search_name)
+            raise Error(info)
 
     def build_dict_from_yaml(self):
         params_dict = {}
