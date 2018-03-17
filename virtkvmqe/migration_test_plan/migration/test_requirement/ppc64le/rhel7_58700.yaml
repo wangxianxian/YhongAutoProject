@@ -19,7 +19,7 @@ vm_cmd_base:
  sandbox:
   - 'off'
  machine:
-  - 'pserials'
+  - 'pseries'
  nodefaults:
   - 'None'
  vga:
@@ -37,7 +37,7 @@ vm_cmd_base:
   - 'virtio-net-pci,mac=9a:8a:8b:8c:8d:8e,id=idfcjBbM,vectors=4,netdev=idyJhsPA,bus=pci.0,addr=0x5'
   - 'usb-tablet,id=usb-tablet1,bus=usb1.0,port=1'
  drive:
-  - 'id=drive_image1,if=none,snapshot=on,aio=threads,cache=none,format=qcow2,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2'
+  - 'id=drive_image1,if=none,snapshot=off,aio=threads,cache=none,format=qcow2,file=/home/yhong/yhong-auto-project/rhel75-64-virtio-scsi.qcow2'
  netdev:
   - 'tap,id=idyJhsPA,vhost=on'
  m:
@@ -59,11 +59,26 @@ vm_cmd_base:
  monitor:
   - 'stdio'
 
+
 test_cases:
- - 'rhel7_0000'
- - 'rhel7_11911' #RHEL7-11911 - [virtual block] dd test one disk with different block size - rhel only
- - 'rhel7_11912' #RHEL7-11912 - [virtual block] do "system_reset" when guest boot for at least 10 times
- - 'rhel7_11948' #RHEL7-11948 - [virtual block] check the file md5 value steady before and after block_resize
+ rhel7_10022:
+  name:
+   - "[migration] Migrate guest via a compressed file"
+ rhel7_10026:
+  name:
+   - "[migration] Do live migrate during vm reboot"
+ rhel7_10031:
+  name:
+   - "[migration] Live migration support in virtio-blk-data-plane"
+ rhel7_10039:
+  name:
+   - "[migration] Do migration after hot plug vdisk"
+ rhel7_10040:
+  name:
+   - "[migration] Do migration after hot remove vdisk"
+ rhel7_10059:
+  name:
+   - "[migration] Ping-pong migration during file transfer"
 
 verbose: 'yes'
 
